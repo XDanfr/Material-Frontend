@@ -1,0 +1,65 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
+}
+
+// Native LWJGL (SDL3) classifiers for every desktop target we ship.
+val lwjglNatives = listOf(
+    "natives-windows", "natives-windows-arm64",
+    "natives-linux", "natives-linux-arm64",
+    "natives-macos", "natives-macos-arm64",
+)
+
+kotlin {
+    jvmToolchain(libs.versions.jvmToolchain.get().toInt())
+    jvm()
+
+    sourceSets {
+        jvmMain.dependencies {
+            implementation(compose.desktop.currentOs)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.icons)
+            implementation(libs.coroutines.swing)
+            implementation(libs.serialization.json)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.json)
+            implementation(libs.materialKolor)
+            implementation(libs.lwjgl.core)
+            implementation(libs.lwjgl.sdl)
+            lwjglNatives.forEach { n ->
+                runtimeOnly("org.lwjgl:lwjgl:${libs.versions.lwjgl.get()}:$n")
+                runtimeOnly("org.lwjgl:lwjgl-sdl:${libs.versions.lwjgl.get()}:$n")
+            }
+        }
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.coroutines.test)
+        }
+    }
+}
+
+compose.desktop {
+    application {
+        mainClass = "app.materialfrontend.MainKt"
+        jvmArgs += listOf("--enable-native-access=ALL-UNNAMED", "-Xss4m")
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
+            packageName = "Material Frontend"
+            packageVersion = "0.1.0"
+            description = "Material 3 Expressive emulation frontend"
+            vendor = "Material Frontend"
+            modules("java.net.http", "java.sql", "jdk.unsupported", "java.desktop", "jdk.crypto.ec")
+            macOS { bundleID = "app.materialfrontend" }
+            windows { menuGroup = "Material Frontend"; perUserInstall = true; upgradeUuid = "4c7d0b8e-7f0b-4a43-9a5e-2f7b0f3b6a11" }
+            linux { packageName = "material-frontend" }
+        }
+    }
+}
+
