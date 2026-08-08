@@ -7,12 +7,20 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
-// Native LWJGL (SDL3) classifiers for every desktop target we ship.
-val lwjglNatives = listOf(
-    "natives-windows", "natives-windows-arm64",
-    "natives-linux", "natives-linux-arm64",
-    "natives-macos", "natives-macos-arm64",
-)
+// SDL3 natives for the OS/arch being built (CI builds each platform on its own runner).
+// Pass -PallNatives to bundle every platform (e.g. for a portable jar).
+val lwjglNatives: List<String> = run {
+    val os = System.getProperty("os.name").lowercase()
+    val arm = System.getProperty("os.arch").let { it.contains("aarch64") || it.contains("arm64") }
+    val all = listOf("natives-windows", "natives-windows-arm64", "natives-linux", "natives-linux-arm64", "natives-macos", "natives-macos-arm64")
+    if (project.hasProperty("allNatives")) all else listOf(
+        when {
+            os.contains("win") -> if (arm) "natives-windows-arm64" else "natives-windows"
+            os.contains("mac") -> if (arm) "natives-macos-arm64" else "natives-macos"
+            else -> if (arm) "natives-linux-arm64" else "natives-linux"
+        }
+    )
+}
 
 kotlin {
     jvmToolchain(libs.versions.jvmToolchain.get().toInt())
