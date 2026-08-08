@@ -52,10 +52,10 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
             packageName = "Material Frontend"
-            packageVersion = "0.1.0"
+            packageVersion = "1.0.0" // jpackage needs major >= 1; the app itself reports 0.1 (WIP)
             description = "Material 3 Expressive emulation frontend"
             vendor = "Material Frontend"
-            modules("java.net.http", "java.sql", "jdk.unsupported", "java.desktop", "jdk.crypto.ec")
+            modules("java.instrument", "java.management", "java.naming", "java.net.http", "jdk.unsupported", "jdk.crypto.ec", "jdk.zipfs")
             macOS { bundleID = "app.materialfrontend" }
             windows { menuGroup = "Material Frontend"; perUserInstall = true; upgradeUuid = "4c7d0b8e-7f0b-4a43-9a5e-2f7b0f3b6a11" }
             linux { packageName = "material-frontend" }
