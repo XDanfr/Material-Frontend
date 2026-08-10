@@ -1,0 +1,89 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.90980,0.87059,0.97255,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.93725,0.72157,0.78431,1.00000"
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "display-p3:0.86558,0.61277,0.70314,1.00000"
+              }
+            }
+          ],
+          "image-name" : "flower.png",
+          "name" : "flower",
+          "position" : {
+            "scale" : 2.35,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.81569,0.73725,1.00000,1.00000"
+              }
+            }
+          ],
+          "image-name" : "body.png",
+          "name" : "body",
+          "position" : {
+            "scale" : 2.35,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.30980,0.21569,0.54510,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "image-name" : "blocks.png",
+          "name" : "blocks",
+          "position" : {
+            "scale" : 2.35,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.3
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

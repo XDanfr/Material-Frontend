@@ -68,10 +68,36 @@ compose.desktop {
             description = "Material 3 Expressive emulation frontend"
             vendor = "Material Frontend"
             modules("java.instrument", "java.management", "java.naming", "java.net.http", "jdk.unsupported", "jdk.crypto.ec", "jdk.zipfs")
-            macOS { bundleID = "app.materialfrontend" }
-            windows { menuGroup = "Material Frontend"; perUserInstall = true; upgradeUuid = "4c7d0b8e-7f0b-4a43-9a5e-2f7b0f3b6a11" }
-            linux { packageName = "material-frontend" }
+            macOS {
+                bundleID = "app.materialfrontend"
+                // Fallback .icns; the Liquid Glass icon (Assets.car) is added after jpackage below.
+                iconFile.set(rootProject.file("packaging/macos/AppIcon.icns"))
+                infoPlist { extraKeysRawXml = "<key>CFBundleIconName</key><string>AppIcon</string>" }
+            }
+            windows {
+                menuGroup = "Material Frontend"; perUserInstall = true; upgradeUuid = "4c7d0b8e-7f0b-4a43-9a5e-2f7b0f3b6a11"
+                iconFile.set(rootProject.file("packaging/windows/icon.ico"))
+            }
+            linux {
+                packageName = "material-frontend"
+                iconFile.set(rootProject.file("packaging/linux/icon.png"))
+            }
         }
     }
 }
 
+// macOS: add the Icon Composer output (Assets.car → Liquid Glass icon on macOS 26) to the bundle,
+// then ad-hoc sign so Apple Silicon accepts the modified bundle. The .dmg is built from this app image.
+tasks.matching { it.name == "createDistributable" }.configureEach {
+    // Plain Files captured at configuration time (configuration-cache safe).
+    val assetsCar: File = rootProject.file("packaging/macos/Assets.car")
+    val appDir: File = layout.buildDirectory.dir("compose/binaries/main/app").get().asFile
+    doLast {
+        if (!System.getProperty("os.name").lowercase().contains("mac")) return@doLast
+        val app = appDir.listFiles()?.firstOrNull { it.name.endsWith(".app") } ?: return@doLast
+        assetsCar.copyTo(app.resolve("Contents/Resources/Assets.car"), overwrite = true)
+        val p = ProcessBuilder("codesign", "--force", "--deep", "--sign", "-", app.absolutePath).redirectErrorStream(true).start()
+        val out = p.inputStream.bufferedReader().readText()
+        check(p.waitFor() == 0) { "codesign failed: $out" }
+    }
+}
