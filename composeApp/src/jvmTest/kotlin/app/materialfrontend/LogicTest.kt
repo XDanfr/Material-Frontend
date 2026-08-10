@@ -46,11 +46,15 @@ class LogicTest {
         File(root, "psx").mkdirs(); File(root, "psx/Disc Game (USA).cue").writeText("FILE \"Disc Game (USA).bin\" BINARY")
         File(root, "psx/Disc Game (USA).bin").writeText("x")
         File(root, "mixed").mkdirs(); File(root, "mixed/Pocket.gba").writeText("x"); File(root, "mixed/ambiguous.iso").writeText("x")
+        File(root, "mixed/Next Gen.nup").writeText("x")
+        File(root, "switch").mkdirs(); File(root, "switch/Old Gen.nsp").writeText("x")
         val r = RomScanner().scan(listOf(RomFolder(root.path)), emptyMap())
         val byPlatform = r.games.groupBy { it.platformId }
         assertEquals(listOf("Super Game"), byPlatform["snes"]?.map { it.title })
         assertEquals(1, byPlatform["psx"]?.size, "cue should hide its bin")
         assertEquals(listOf("Pocket"), byPlatform["gba"]?.map { it.title })
+        assertEquals(listOf("Next Gen"), byPlatform["switch2"]?.map { it.title }, ".nup is Switch 2 anywhere")
+        assertEquals(listOf("Old Gen"), byPlatform["switch"]?.map { it.title })
         assertTrue(r.games.none { it.path.endsWith(".iso") }, "ambiguous ext outside a system folder is skipped")
         root.deleteRecursively()
     }
