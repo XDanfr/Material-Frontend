@@ -1,5 +1,6 @@
 package app.materialfrontend.ui.theme
 
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MotionScheme
@@ -33,6 +34,7 @@ fun MaterialFrontendTheme(settings: Settings, artworkSeed: Color?, content: @Com
         isDark = dark,
         isAmoled = settings.themeMode == ThemeMode.AMOLED,
         style = PaletteStyle.TonalSpot,
+        typography = remember { flexTypography() },
         animate = true,
         content = content,
     )
