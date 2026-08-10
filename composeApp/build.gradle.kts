@@ -55,6 +55,10 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "app.materialfrontend.MainKt"
+        // Bundle the same JDK the code is compiled for (not whatever JVM runs Gradle).
+        javaHome = javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(libs.versions.jvmToolchain.get().toInt()))
+        }.get().metadata.installationPath.asFile.absolutePath
         jvmArgs += listOf("--enable-native-access=ALL-UNNAMED", "-Xss4m")
 
         nativeDistributions {
