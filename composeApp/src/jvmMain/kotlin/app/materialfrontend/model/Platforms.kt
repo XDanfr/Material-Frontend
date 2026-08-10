@@ -60,7 +60,7 @@ object Platforms {
         Platform("switch", "Nintendo Switch", "Switch", "Nintendo", 2017, setOf("nsp", "xci", "nca", "nro", "nsz", "xcz"),
             setOf("switch", "nsw", "nintendoswitch"), null, 225, 130, emptyList(),
             listOf("ryujinx", "citron", "eden", "sudachi", "suyu", "yuzu", "torzu")),
-        Platform("switch2", "Nintendo Switch 2", "Switch 2", "Nintendo", 2025, setOf("nsp", "xci", "nsz", "xcz"),
+        Platform("switch2", "Nintendo Switch 2", "Switch 2", "Nintendo", 2025, setOf("nup", "nsp", "xci", "nsz", "xcz"),
             setOf("switch2", "ns2", "nintendoswitch2"), null, null, 508, emptyList(), listOf("eglantine")),
 
         // Sega
