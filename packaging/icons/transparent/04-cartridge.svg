@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="512"
+   height="512"
+   viewBox="0 0 512 512"
+   version="1.1"
+   id="svg11"
+   sodipodi:docname="04-cartridge.svg"
+   inkscape:version="1.4.4 (dcaf3e7d, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview11"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.0301624"
+     inkscape:cx="237.82659"
+     inkscape:cy="235.39978"
+     inkscape:window-width="1792"
+     inkscape:window-height="978"
+     inkscape:window-x="0"
+     inkscape:window-y="31"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg11" />
+  <title
+     id="title1">04-cartridge</title>
+  <defs
+     id="defs1">
+    <clipPath
+       id="tile">
+      <rect
+         width="512"
+         height="512"
+         rx="112"
+         id="rect1" />
+    </clipPath>
+  </defs>
+  <g
+     clip-path="url(#tile)"
+     id="g11">
+    <rect
+       width="512"
+       height="512"
+       fill="#e8def8"
+       id="rect2"
+       x="0"
+       y="0"
+       style="display:none" />
+    <path
+       d="m 152,92 h 184 q 44,0 44,44 v 204 l -40,80 H 176 q -44,0 -44,-44 V 112 q 0,-20 20,-20 z"
+       fill="#6750a4"
+       id="path2"
+       style="display:inline" />
+    <rect
+       x="176"
+       y="112"
+       width="32"
+       height="12"
+       rx="6"
+       fill="#8D79C7"
+       id="rect3" />
+    <rect
+       x="240"
+       y="112"
+       width="32"
+       height="12"
+       rx="6"
+       fill="#8D79C7"
+       id="rect4" />
+    <rect
+       x="304"
+       y="112"
+       width="32"
+       height="12"
+       rx="6"
+       fill="#8D79C7"
+       id="rect5" />
+    <rect
+       x="160"
+       y="148"
+       width="192"
+       height="176"
+       rx="28"
+       fill="#EADDFF"
+       id="rect6" />
+    <path
+       d="M303.126 76.8625C291.251 64.988 264.194 70.8597 231.547 89.6813C221.771 53.2855 206.79 30 189.996 30C173.203 30 158.223 53.2841 148.447 89.6779C115.802 70.8581 88.7463 64.9874 76.8722 76.8614C64.997 88.7367 70.8701 115.796 89.6945 148.446C53.2912 158.222 30 173.204 30 190C30 206.793 53.283 221.773 89.6753 231.549C70.8495 264.2 64.9757 291.261 76.8513 303.137C88.7274 315.013 115.79 309.138 148.444 290.31C158.22 326.711 173.201 350 189.996 350C206.792 350 221.774 326.709 231.55 290.307C264.205 309.136 291.27 315.012 303.146 303.136C315.022 291.26 309.148 264.2 290.323 231.549C326.716 221.773 350 206.793 350 190C350 173.204 326.708 158.222 290.304 148.446C309.128 115.797 315.001 88.7376 303.126 76.8625Z"
+       fill="#7D5260"
+       transform="translate(256 236) rotate(0) scale(0.4125) translate(-190 -190)"
+       id="path6" />
+    <rect
+       x="176"
+       y="372"
+       width="14"
+       height="30"
+       rx="7"
+       fill="#8D79C7"
+       id="rect7" />
+    <rect
+       x="204"
+       y="372"
+       width="14"
+       height="30"
+       rx="7"
+       fill="#8D79C7"
+       id="rect8" />
+    <rect
+       x="232"
+       y="372"
+       width="14"
+       height="30"
+       rx="7"
+       fill="#8D79C7"
+       id="rect9" />
+    <rect
+       x="260"
+       y="372"
+       width="14"
+       height="30"
+       rx="7"
+       fill="#8D79C7"
+       id="rect10" />
+    <rect
+       x="288"
+       y="372"
+       width="14"
+       height="30"
+       rx="7"
+       fill="#8D79C7"
+       id="rect11" />
+  </g>
+  <metadata
+     id="metadata11">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>04-cartridge</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

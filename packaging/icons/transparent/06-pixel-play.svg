@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="512"
+   height="512"
+   viewBox="0 0 512 512"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="06-pixel-play.svg"
+   inkscape:version="1.4.4 (dcaf3e7d, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.05078125"
+     inkscape:cx="256"
+     inkscape:cy="246.15385"
+     inkscape:window-width="944"
+     inkscape:window-height="604"
+     inkscape:window-x="0"
+     inkscape:window-y="31"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg3" />
+  <title
+     id="title1">06-pixel-play</title>
+  <defs
+     id="defs1">
+    <clipPath
+       id="tile">
+      <rect
+         width="512"
+         height="512"
+         rx="112"
+         id="rect1" />
+    </clipPath>
+  </defs>
+  <g
+     clip-path="url(#tile)"
+     id="g3">
+    <rect
+       width="512"
+       height="512"
+       fill="#eaddff"
+       id="rect2"
+       x="0"
+       y="0"
+       style="display:none" />
+    <path
+       d="M253.556 34H126.444V54.2217H83.1111V80.2222H57.1111V126.444H34V253.556H57.1111V299.778H83.1111V325.777H126.444V346H253.556V325.777H296.889V299.778H322.889V253.556H346V126.444H322.889V80.2222H296.889V54.2217H253.556V34Z"
+       fill="#6750A4"
+       transform="translate(256 256) rotate(0) scale(1.1250) translate(-190 -190)"
+       id="path2" />
+    <path
+       d="M121.641 30H66V350H121.641V322.174H164.564V295.739H209.077V265.13H245.641V240.086H282.205V209.478H314V170.522H282.205V139.912H245.641V114.869H209.077V84.2609H164.564V57.8262H121.641V30Z"
+       fill="#EADDFF"
+       transform="translate(270 256) rotate(0) scale(0.4688) translate(-190 -190)"
+       id="path3" />
+  </g>
+  <metadata
+     id="metadata3">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>06-pixel-play</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>
