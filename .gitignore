@@ -1,7 +1,41 @@
+# Gradle / Kotlin
 .gradle/
 build/
+!gradle/wrapper/gradle-wrapper.jar
 .kotlin/
+kotlin-js-store/
+local.properties
+*.hprof
+
+# Compose Multiplatform / Android leftovers
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# IDEs
 .idea/
 *.iml
-local.properties
+*.ipr
+*.iws
+.vscode/
+.fleet/
+out/
+
+# Xcode / macOS
+xcuserdata/
+*.xcuserstate
+DerivedData/
 .DS_Store
+
+# Claude / AI tooling
+.claude/
+**/.claude/
+CLAUDE.md
+CLAUDE.local.md
+**/CLAUDE.local.md
+.claude-*
+
+# Local runtime data (MF_DATA_DIR test runs)
+/data/
