@@ -30,6 +30,13 @@ object Platforms {
 
     private val disc = setOf("cue", "chd", "iso", "m3u")
 
+    /** A PC storefront/launcher collection (metadata looked up as PC games). */
+    private fun pcStore(id: String, name: String, short: String) =
+        Platform(id, name, short, "PC", 2000, emptySet(), emptySet(), thumbnailsName = null, screenScraperId = null, igdbId = 6)
+
+    /** Storefront collections whose games run natively on the PC. */
+    val pcStores = setOf(STEAM, PC, "epic", "ea", "xbox-pc", "gog", "ubisoft", "amazon", "lutris")
+
     val all: List<Platform> = listOf(
         // Nintendo
         Platform("nes", "Nintendo Entertainment System", "NES", "Nintendo", 1983, setOf("nes", "fds", "unf", "unif", "zip", "7z"),
@@ -141,6 +148,13 @@ object Platforms {
         // PC
         Platform(STEAM, "Steam", "Steam", "Valve", 2003, emptySet(), emptySet(), null, null, 6),
         Platform(PC, "PC", "PC", "PC", 1981, emptySet(), setOf("pc", "windows", "ports"), null, 135, 6),
+        pcStore("epic", "Epic Games", "Epic"),
+        pcStore("ea", "EA app", "EA"),
+        pcStore("xbox-pc", "Xbox (PC)", "Xbox PC"),
+        pcStore("gog", "GOG", "GOG"),
+        pcStore("ubisoft", "Ubisoft Connect", "Ubisoft"),
+        pcStore("amazon", "Amazon Games", "Amazon"),
+        pcStore("lutris", "Lutris", "Lutris"),
     )
 
     private val byId = all.associateBy { it.id }
@@ -161,5 +175,5 @@ object Platforms {
     fun normalize(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
 
     /** Platforms a recompiled/decompiled PC port can be associated with. */
-    val portTargets: List<Platform> get() = all.filter { it.id != STEAM }
+    val portTargets: List<Platform> get() = all.filter { it.id !in pcStores || it.id == PC }
 }

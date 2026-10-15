@@ -3,7 +3,11 @@ package app.materialfrontend.model
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class GameKind { ROM, STEAM, PORT }
+enum class GameKind {
+    ROM, STEAM, PORT,
+    /** Installed through another launcher (Epic, EA, Xbox, GOG, Ubisoft, Heroic, Lutris…); path = launch URI or executable. */
+    LAUNCHER,
+}
 
 @Serializable
 data class GameMeta(
@@ -116,6 +120,8 @@ data class Settings(
     val romFolders: List<RomFolder> = emptyList(),
     val biosDir: String? = null,
     val importSteam: Boolean = true,
+    /** Epic, EA, Xbox, GOG Galaxy, Ubisoft, Heroic, Lutris. */
+    val importLaunchers: Boolean = true,
     /** Read existing ES-DE / EmulationStation gamelist.xml and Pegasus metadata files. */
     val importGamelists: Boolean = true,
     val emulators: List<EmulatorConfig> = emptyList(),

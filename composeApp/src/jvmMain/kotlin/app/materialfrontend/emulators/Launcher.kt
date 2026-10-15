@@ -16,6 +16,8 @@ sealed interface LaunchTarget {
     /** External process (standalone emulator, RetroArch with a HW core, a port). */
     data class External(val name: String, val command: List<String>, val workingDir: File?) : LaunchTarget { override val label = name }
     data class Steam(val appId: String) : LaunchTarget { override val label = "Steam" }
+    /** Opened by the OS (launcher URI like com.epicgames.launcher://, heroic://, uplay://, shell:AppsFolder…). */
+    data class Uri(val uri: String, override val label: String) : LaunchTarget
     data class Unavailable(val reason: String) : LaunchTarget { override val label = "Unavailable" }
 }
 
@@ -23,6 +25,11 @@ object Launchers {
     /** Every way this game could be launched, best first. Keys are "core:<id>" / "emu:<configId>". */
     fun options(game: Game, settings: Settings): List<Pair<String, LaunchTarget>> {
         if (game.kind == GameKind.STEAM) return listOf("steam" to LaunchTarget.Steam(game.path))
+        if (game.kind == GameKind.LAUNCHER) {
+            val store = Platforms.get(game.platformId).name
+            return if (isUri(game.path)) listOf("launcher" to LaunchTarget.Uri(game.path, store))
+            else File(game.path).let { exe -> listOf("launcher" to LaunchTarget.External(store, listOf(exe.path), exe.parentFile)) }
+        }
         if (game.kind == GameKind.PORT) {
             val exe = File(game.path)
             return listOf("port" to LaunchTarget.External(exe.nameWithoutExtension, listOf(exe.path) + splitArgs(game.launchArgs.orEmpty()), exe.parentFile))
@@ -77,6 +84,9 @@ object Launchers {
     }
 
     fun openSteam(appId: String) = openUri("steam://rungameid/$appId")
+
+    /** A scheme like "heroic:" / "lutris:" / "shell:" — but not a Windows drive letter ("C:"). */
+    fun isUri(s: String) = Regex("^[A-Za-z][A-Za-z0-9+.-]+:").containsMatchIn(s)
 
     fun openUri(uri: String) {
         val cmd = when (HostOs.current) {
