@@ -47,6 +47,32 @@ object Vdf {
     }
 }
 
+/** Binary KeyValues (shortcuts.vdf): 0x00 map, 0x01 string, 0x02 int32, 0x07 uint64, 0x08 end. */
+object BinaryVdf {
+    fun parse(b: ByteArray): Map<String, Any> {
+        var i = 0
+        fun cstr(): String { val st = i; while (i < b.size && b[i] != 0.toByte()) i++; return String(b, st, i - st, Charsets.UTF_8).also { i++ } }
+        fun int32(): Int { val v = (b[i].toInt() and 0xff) or ((b[i + 1].toInt() and 0xff) shl 8) or ((b[i + 2].toInt() and 0xff) shl 16) or ((b[i + 3].toInt() and 0xff) shl 24); i += 4; return v }
+        fun map(): Map<String, Any> {
+            val m = LinkedHashMap<String, Any>()
+            while (i < b.size) {
+                val type = b[i++].toInt()
+                if (type == 0x08) return m
+                val key = cstr()
+                when (type) {
+                    0x00 -> m[key] = map()
+                    0x01 -> m[key] = cstr()
+                    0x02 -> m[key] = int32()
+                    0x07 -> { m[key] = int32().toLong() and 0xffffffffL or (int32().toLong() shl 32) }
+                    else -> return m
+                }
+            }
+            return m
+        }
+        return map()
+    }
+}
+
 class SteamLibrary {
     private val home = System.getProperty("user.home")
 
@@ -98,6 +124,34 @@ class SteamLibrary {
                 }.getOrNull()
             }
         }
+    }
+
+    /**
+     * Non-Steam games added to Steam (userdata/<user>/config/shortcuts.vdf). Covers anything users
+     * "Add to Steam" — e.g. the Xodus-based Nexus launcher for Xbox PC games on Linux, EmuDeck tools.
+     * Launched through Steam with the shortcut's game id.
+     */
+    fun shortcuts(): List<Game> {
+        val root = steamRoot() ?: return emptyList()
+        return File(root, "userdata").listFiles { f -> f.isDirectory }.orEmpty().flatMap { user ->
+            val vdf = File(user, "config/shortcuts.vdf").takeIf { it.isFile } ?: return@flatMap emptyList()
+            val grid = File(user, "config/grid")
+            @Suppress("UNCHECKED_CAST")
+            val list = runCatching { (BinaryVdf.parse(vdf.readBytes())["shortcuts"] as? Map<String, Any>)?.values }.getOrNull().orEmpty()
+            list.mapNotNull { e ->
+                val m = (e as? Map<*, *>)?.mapKeys { (it.key as String).lowercase() } ?: return@mapNotNull null
+                val name = m["appname"] as? String ?: return@mapNotNull null
+                val exe = (m["exe"] as? String).orEmpty()
+                if (exe.contains("material-frontend", true) || exe.contains("Material Frontend", true)) return@mapNotNull null
+                val appId = ((m["appid"] as? Int) ?: return@mapNotNull null).toLong() and 0xffffffffL
+                val gameId = (appId shl 32) or 0x02000000L
+                fun art(suffix: String) = listOf("png", "jpg").map { File(grid, "$appId$suffix.$it") }.firstOrNull { it.isFile }?.path
+                Game(
+                    id = "steam-shortcut-$appId", title = name, platformId = Platforms.STEAM, kind = GameKind.STEAM,
+                    path = gameId.toString(), assets = GameAssets(cover = art("p"), hero = art("_hero"), logo = art("_logo"), screenshot = art("")),
+                )
+            }
+        }.distinctBy { it.id }
     }
 
     /** Steam keeps library art locally; layouts differ by client version. */
