@@ -129,7 +129,8 @@ fun RomFoldersPanel() {
                 }
             }) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Add folder") }
         }
-        SwitchRow("Import Steam library", "Installed Steam games appear with their library art", settings.importSteam) { v -> app.updateSettings { it.copy(importSteam = v) } }
+        SwitchRow("Import Steam library", "Installed Steam games and non-Steam shortcuts, with their library art", settings.importSteam) { v -> app.updateSettings { it.copy(importSteam = v) } }
+        SwitchRow("Import other launchers", "Epic Games, EA app, Xbox, GOG Galaxy, Ubisoft Connect, Heroic and Lutris", settings.importLaunchers) { v -> app.updateSettings { it.copy(importLaunchers = v) } }
         SwitchRow("Use existing ES-DE / Pegasus metadata", "Reads gamelist.xml and metadata.pegasus.txt next to your games", settings.importGamelists) { v -> app.updateSettings { it.copy(importGamelists = v) } }
     }
 }

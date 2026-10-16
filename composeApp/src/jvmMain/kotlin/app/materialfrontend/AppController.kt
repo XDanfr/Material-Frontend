@@ -1,6 +1,7 @@
 package app.materialfrontend
 
 import app.materialfrontend.data.Gamelists
+import app.materialfrontend.data.LauncherSources
 import app.materialfrontend.data.AppPaths
 import app.materialfrontend.data.Ids
 import app.materialfrontend.data.LibraryStore
@@ -98,13 +99,18 @@ class AppController {
             val existing = library.value.associateBy { it.id }
             val roms = RomScanner().scan(s.romFolders, existing) { _scan.value = _scan.value.copy(current = it) }.games
             _scan.value = _scan.value.copy(current = "Steam")
-            val steamGames = if (s.importSteam) runCatching { SteamLibrary().scan() }.getOrDefault(emptyList()) else emptyList()
+            val steamLib = SteamLibrary()
+            val steamGames = if (s.importSteam) runCatching { steamLib.scan() + steamLib.shortcuts() }.getOrDefault(emptyList()) else emptyList()
             val steam = steamGames.map { g ->
                 existing[g.id]?.let { prev -> prev.copy(path = g.path, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero ?: g.assets.hero, logo = prev.assets.logo ?: g.assets.logo)) } ?: g
             }
+            _scan.value = _scan.value.copy(current = "Other launchers")
+            val launchers = if (s.importLaunchers) runCatching { LauncherSources.scanAll() }.getOrDefault(emptyList()).map { g ->
+                existing[g.id]?.let { prev -> prev.copy(path = g.path, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero ?: g.assets.hero)) } ?: g
+            } else emptyList()
             val imported = if (s.importGamelists) Gamelists.apply(roms, s.romFolders) else roms
             val keep = library.value.filter { it.kind == GameKind.PORT }
-            val all = (imported + steam + keep).distinctBy { it.id }
+            val all = (imported + steam + launchers + keep).distinctBy { it.id }
             library.update { all }
             _scan.value = ScanState(false, "", all.size)
             toast("Library updated · ${all.size} games")
@@ -150,6 +156,7 @@ class AppController {
             }
             is LaunchTarget.External -> launchExternal(game, t)
             is LaunchTarget.Steam -> { Launchers.openSteam(t.appId); markPlayed(game); toast("Opening ${game.title} in Steam") }
+            is LaunchTarget.Uri -> { Launchers.openUri(t.uri); markPlayed(game); toast("Opening ${game.title} in ${t.label}") }
             is LaunchTarget.Unavailable -> toast(t.reason)
         }
     }
