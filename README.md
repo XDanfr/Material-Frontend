@@ -9,7 +9,15 @@ A Material 3 Expressive emulation frontend for Windows, macOS and Linux, built w
   - **Core options:** legacy, v1 and v2 (with categories) appear in the in-game menu and are saved per core.
   - **Disc swapping:** multi-disc games can change disc from the in-game menu.
 - **Standalone emulators:** detected and launched with per-emulator argument templates. This includes RetroArch, DuckStation, PCSX2, RPCS3, shadPS4, Vita3K, PPSSPP, Dolphin, Cemu, Ryujinx/Ryubing, Citron, Eden, Sudachi, suyu, Torzu, yuzu, Eglantine (Switch 2), Azahar, Lime3DS, melonDS, xemu, Xenia/Xenia Canary (including the Linux AppImage), Flycast, Redream, mGBA, Mesen, ares, RMG, simple64 and MAME. You can also add your own emulator, for example for PS5 when one exists.
-- **Steam import:** reads `libraryfolders.vdf` and the app manifests, and uses the local library art.
+- **Steam import:** reads `libraryfolders.vdf`, the app manifests and non-Steam shortcuts (`shortcuts.vdf`), and uses the local library art and custom grid art.
+- **Other launchers:**
+  - Epic Games Launcher (`.item` manifests; the rebuilt launcher, including its Linux preview, is searched best-effort).
+  - EA app (`__Installer/installerdata.xml`).
+  - Xbox app (GDK packages with a `MicrosoftGame.config`, launched via `shell:AppsFolder`).
+  - GOG Galaxy and Ubisoft Connect (registry).
+  - Heroic (Epic, GOG and Amazon).
+  - Lutris.
+  - Xbox games on Linux through Xodus/Nexus show up via Nexus's "Add to Steam" shortcuts.
 - **Existing setups:** ES-DE / EmulationStation `gamelist.xml` (including ES-DE's `downloaded_media`) and Pegasus `metadata.pegasus.txt` metadata and art are imported. They only fill gaps, so your own edits are kept.
 - **Ports, recomps and decomps:** pick the executable. The game and its original system are guessed (Zelda64Recomp → Majora's Mask on N64) and you can edit both.
 - **Scraping:**
@@ -103,6 +111,7 @@ Data lives in `~/Library/Application Support/MaterialFrontend`, `%APPDATA%\Mater
 - **In-app hardware rendering** (`RETRO_ENVIRONMENT_SET_HW_RENDER` through an LWJGL OpenGL context with readback) for N64, PSP, Dreamcast and PS1 HW. Until then these cores launch through RetroArch when it's installed, or through the standalone emulator.
 - Per-game remapping and input profiles.
 - RetroAchievements.
-- Heroic, Lutris and other PC launcher sources.
+- Battle.net, itch.io and Amazon Games app (Windows) sources.
+- A direct Xodus integration, once it publishes an interface for other apps.
 
 BIOS files, firmware and keys are never downloaded; you supply your own dumps.
