@@ -107,11 +107,14 @@ import cc.xdan.frontend.model.Settings
 import cc.xdan.frontend.model.ThemeMode
 import cc.xdan.frontend.model.UiMode
 import cc.xdan.frontend.model.Usage
-import cc.xdan.frontend.ui.brand.BrandIcon
 import cc.xdan.frontend.ui.brand.BrandIcons
 import cc.xdan.frontend.ui.brand.BrandMorph
 import cc.xdan.frontend.ui.brand.CartridgeLoader
 import cc.xdan.frontend.ui.brand.WordmarkLockup
+import cc.xdan.frontend.ui.brand.BrandTile
+import cc.xdan.frontend.ui.brand.BrandTileImage
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import cc.xdan.frontend.ui.components.ButtonGlyph
 import cc.xdan.frontend.ui.components.FilePicker
 import cc.xdan.frontend.ui.components.HintBar
@@ -281,12 +284,16 @@ private fun StepScope.Question(
     content: @Composable StepScope.() -> Unit,
 ) {
     val pad = if (big) 72.dp else 48.dp
-    Column(Modifier.fillMaxSize().padding(start = pad, end = pad, top = if (big) 96.dp else 72.dp, bottom = if (big) 40.dp else 28.dp)) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            Text(title, style = titleStyle, color = MaterialTheme.colorScheme.onSurface)
-            Text(subtitle, style = if (big) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp, bottom = if (big) 48.dp else 36.dp).widthIn(max = 900.dp))
-            content()
+    Column(Modifier.fillMaxSize().padding(start = pad, end = pad, top = if (big) 72.dp else 56.dp, bottom = if (big) 40.dp else 28.dp)) {
+        // Title, explanation and choices as one block, centred both ways.
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            Column(Modifier.align(Alignment.Center).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(title, style = titleStyle, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
+                Text(subtitle, style = if (big) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 12.dp, bottom = if (big) 48.dp else 36.dp).widthIn(max = 820.dp))
+                content()
+            }
         }
         // Buttons registered last so they're the final focus targets (Start = Continue).
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
@@ -330,13 +337,15 @@ private fun StepScope.PillButton(label: String, primary: Boolean, enabled: Boole
 @Composable
 private fun StepScope.Choice(
     title: String, subtitle: String?, selected: Boolean, onClick: () -> Unit,
-    icon: ImageVector? = null, brand: BrandIcon? = null, width: Dp? = null,
+    icon: ImageVector? = null, tile: BrandTile? = null,
 ) {
     val i = register(onClick)
     choices++
     val focused = isFocused(i, isChoice = true)
     val cs = MaterialTheme.colorScheme
-    val w = width ?: if (big) 300.dp else 240.dp
+    val w = if (big) CARD_W_BIG else CARD_W
+    val h = if (big) CARD_H_BIG else CARD_H
+    val iconSize = if (big) 88.dp else 72.dp
     val bg by animateColorAsState(if (selected) cs.primaryContainer else cs.surfaceContainerHigh, MaterialTheme.motionScheme.defaultEffectsSpec())
     val fg = if (selected) cs.onPrimaryContainer else cs.onSurface
     val corner by animateDpAsState(if (selected) 36.dp else 24.dp, MaterialTheme.motionScheme.defaultSpatialSpec())
@@ -344,17 +353,25 @@ private fun StepScope.Choice(
     val ring by animateColorAsState(if (focused) cs.primary else Color.Transparent, MaterialTheme.motionScheme.fastEffectsSpec())
     val interaction = remember { MutableInteractionSource() }
     Box(
-        Modifier.width(w).graphicsLayer { scaleX = scale; scaleY = scale }.pressBounce(LocalPressPulse.current, focused, interaction)
+        Modifier.size(w, h).graphicsLayer { scaleX = scale; scaleY = scale }.pressBounce(LocalPressPulse.current, focused, interaction)
             .border(3.dp, ring, RoundedCornerShape(corner + 4.dp)).padding(5.dp)
             .clip(RoundedCornerShape(corner)).background(bg)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(if (big) 28.dp else 22.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Every card's icon is the same rounded tile: the brand tiles as designed, or a tonal tile
+            // with the same corner ratio (112/512) holding a Material icon.
             when {
-                brand != null -> BrandMorph(brand, Modifier.size(if (big) 88.dp else 72.dp))
-                icon != null -> Icon(icon, null, Modifier.size(if (big) 44.dp else 36.dp), tint = if (selected) cs.onPrimaryContainer else cs.primary)
+                // Hairline edge so dark tiles (play stack) still read as a full square on dark cards.
+                tile != null -> BrandTileImage(tile, Modifier.size(iconSize)
+                    .border(1.dp, cs.outlineVariant, RoundedCornerShape(iconSize * 0.22f)))
+                icon != null -> Box(Modifier.size(iconSize).clip(RoundedCornerShape(iconSize * 0.22f))
+                    .background(if (selected) cs.primary else cs.secondaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(iconSize * 0.5f), tint = if (selected) cs.onPrimary else cs.onSecondaryContainer)
+                }
             }
+            Spacer(Modifier.height(4.dp))
             Text(title, color = fg, style = (if (big) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge)
                 .reactive(selected || focused) { copy(wght = 740f, rond = 100f) }, maxLines = 2)
             subtitle?.let { Text(it, color = fg.copy(alpha = 0.8f), style = if (big) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis) }
@@ -363,9 +380,18 @@ private fun StepScope.Choice(
     }
 }
 
+private val CARD_W = 260.dp
+private val CARD_H = 280.dp
+private val CARD_W_BIG = 300.dp
+private val CARD_H_BIG = 330.dp
+
+/** Cards centred, wrapping onto a new centred line on narrow windows. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChoiceRow(content: @Composable () -> Unit) =
-    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.Top) { content() }
+    // Padding leaves room for the focused card's lift and outline (otherwise clipped by the scroll area).
+    FlowRow(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(20.dp)) { content() }
 
 // ---------------------------------------------------------------- steps
 
@@ -409,9 +435,9 @@ private fun UsageStep(s: StepScope, settings: Settings, back: () -> Unit, next: 
     Question("What will you use it for?", "We'll only ask about what you need. You can change everything later in Settings.",
         back, next, continueEnabled = settings.usage != null) {
         ChoiceRow {
-            Choice("PC games", "Steam, Epic, GOG, Xbox and other launchers in one library", settings.usage == Usage.GAMES, { pick(Usage.GAMES) }, brand = BrandIcons.playStack)
-            Choice("Emulation", "Retro and modern consoles, with emulators set up for you", settings.usage == Usage.EMULATION, { pick(Usage.EMULATION) }, brand = BrandIcons.controller)
-            Choice("Both", "Everything in one place", settings.usage == Usage.BOTH, { pick(Usage.BOTH) }, brand = BrandIcons.cartridge)
+            Choice("PC games", "Steam, Epic, GOG, Xbox and other launchers in one library", settings.usage == Usage.GAMES, { pick(Usage.GAMES) }, tile = BrandTile.PLAY_STACK)
+            Choice("Emulation", "Retro and modern consoles, with emulators set up for you", settings.usage == Usage.EMULATION, { pick(Usage.EMULATION) }, tile = BrandTile.CONTROLLER)
+            Choice("Both", "Everything in one place", settings.usage == Usage.BOTH, { pick(Usage.BOTH) }, tile = BrandTile.CARTRIDGE)
         }
     }
 }
@@ -422,10 +448,10 @@ private fun Look(s: StepScope, settings: Settings, back: () -> Unit, next: () ->
     fun pick(m: ThemeMode) = app.updateSettings { it.copy(themeMode = m) }
     Question("Pick a look", "Colours also follow the artwork of the game you're on. Accent colours are in Settings.", back, next) {
         ChoiceRow {
-            Choice("Automatic", "Follow your system", settings.themeMode == ThemeMode.SYSTEM, { pick(ThemeMode.SYSTEM) }, Icons.Outlined.BrightnessAuto, width = if (big) 240.dp else 200.dp)
-            Choice("Light", null, settings.themeMode == ThemeMode.LIGHT, { pick(ThemeMode.LIGHT) }, Icons.Outlined.LightMode, width = if (big) 240.dp else 200.dp)
-            Choice("Dark", null, settings.themeMode == ThemeMode.DARK, { pick(ThemeMode.DARK) }, Icons.Outlined.DarkMode, width = if (big) 240.dp else 200.dp)
-            Choice("Black", "For OLED screens", settings.themeMode == ThemeMode.AMOLED, { pick(ThemeMode.AMOLED) }, Icons.Outlined.Contrast, width = if (big) 240.dp else 200.dp)
+            Choice("Automatic", "Follow your system", settings.themeMode == ThemeMode.SYSTEM, { pick(ThemeMode.SYSTEM) }, Icons.Outlined.BrightnessAuto)
+            Choice("Light", null, settings.themeMode == ThemeMode.LIGHT, { pick(ThemeMode.LIGHT) }, Icons.Outlined.LightMode)
+            Choice("Dark", null, settings.themeMode == ThemeMode.DARK, { pick(ThemeMode.DARK) }, Icons.Outlined.DarkMode)
+            Choice("Black", "For OLED screens", settings.themeMode == ThemeMode.AMOLED, { pick(ThemeMode.AMOLED) }, Icons.Outlined.Contrast)
         }
     }
 }
@@ -503,7 +529,7 @@ private fun Folders(s: StepScope, settings: Settings, back: () -> Unit, next: ()
     }
     Question("Where are your games?", "Pick the folders that hold your games. Sub-folders named after systems (snes, psx, switch…) are sorted automatically.",
         back, next) {
-        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        ChoiceRow {
             shown.take(4).forEach { path ->
                 Choice(File(path).name, path, settings.romFolders.any { it.path == path }, { toggle(path) }, Icons.Outlined.Folder)
             }

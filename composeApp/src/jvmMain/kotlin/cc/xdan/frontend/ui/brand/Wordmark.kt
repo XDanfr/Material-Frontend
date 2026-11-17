@@ -65,3 +65,21 @@ fun BrandArtwork(kind: Wordmark, modifier: Modifier = Modifier, contentDescripti
     }
     Image(painter, contentDescription, modifier.aspectRatio(kind.aspect), contentScale = ContentScale.Fit)
 }
+
+/** The non-transparent icon tiles (resources/brand/tiles), drawn as designed. */
+enum class BrandTile(val file: String) {
+    FACE_BUTTONS("01-face-buttons.svg"), DPAD("02-dpad-burst.svg"), CONTROLLER("03-controller-cookie.svg"),
+    CARTRIDGE("04d-cartridge-cutout-layered.svg"), PLAY_STACK("05-play-stack-dark.svg"), PIXEL_PLAY("06-pixel-play.svg"), MORPH_SLOT("07-morph-slot.svg"),
+}
+
+private val tilePainters = HashMap<BrandTile, Painter>()
+
+@Composable
+fun BrandTileImage(tile: BrandTile, modifier: Modifier = Modifier) {
+    val painter = remember(tile) {
+        tilePainters.getOrPut(tile) {
+            BrandTile::class.java.getResourceAsStream("/brand/tiles/${tile.file}")!!.use { loadSvgPainter(it, Density(1f)) }
+        }
+    }
+    Image(painter, null, modifier.aspectRatio(1f), contentScale = ContentScale.Fit)
+}
