@@ -74,7 +74,7 @@ CI (`.github/workflows/build.yml`) tests and packages on Windows x64, Linux x64 
 | Save / load state | Quick menu | F5 / F7 |
 | Close external emulator | Guide | — |
 
-In game, the keyboard maps to the RetroPad as follows: arrows = D-pad, Z/X/A/S = face buttons, Q/W = L/R, 1/3 = L2/R2, Enter = Start and Shift = Select. F11 toggles fullscreen everywhere.
+In game, the keyboard maps to the RetroPad as follows: arrows = D-pad, Z/X/A/S = face buttons, Q/W = L/R, 1/3 = L2/R2, Enter = Start and Shift = Select. Fullscreen toggles with F11 on Windows and Linux and ⌃⌘F (Control-Command-F) on macOS; the green window button and Globe-F stay in sync.
 
 ## Icons and type
 

@@ -127,7 +127,7 @@ import java.io.File
 /*
  * Setup, one question per screen. Everything is reachable with a controller (D-pad/stick to move,
  * A to choose, B to go back, Start to continue), the keyboard (arrows, Enter, Esc) or the mouse.
- * Fullscreen (controller start-up or F11) uses larger type — same flow, same saved progress.
+ * Fullscreen (controller start-up, F11 / ⌃⌘F on macOS) uses larger type — same flow, same saved progress.
  */
 
 private enum class StepId { WELCOME, USAGE, LOOK, CONTROLS, NINTENDO, PC_LIBRARIES, FOLDERS, EMULATORS, CORES, BIOS, ARTWORK, DONE }

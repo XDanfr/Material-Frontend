@@ -1,5 +1,6 @@
 package cc.xdan.frontend.ui.components
 
+import cc.xdan.frontend.data.HostOs
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -143,6 +144,12 @@ fun Modifier.pressBounce(pulse: Int = 0, active: Boolean = true, interaction: In
         }
     }
     return graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+}
+
+/** Keyboard shortcut labels that differ per OS. */
+object Shortcuts {
+    /** Fullscreen: Control-Command-F is the macOS standard (F11 is Show Desktop there); F11 elsewhere. */
+    val fullscreen: String = if (HostOs.current == HostOs.MAC) "⌃⌘F" else "F11"
 }
 
 /** Bumped by a screen when the controller/keyboard confirms; the focused control bounces. */

@@ -2,6 +2,7 @@
 
 package cc.xdan.frontend.ui.library
 
+import cc.xdan.frontend.ui.components.Shortcuts
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import cc.xdan.frontend.ui.components.pressBounce
@@ -247,7 +248,7 @@ fun LibraryScreen() {
                     Tip("Add port / recomp") { IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showAddPort = true }) { Icon(Icons.Outlined.Add, "Add port") } }
                     Tip("Rescan library") { IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.rescan() }, enabled = !scan.running) { Icon(Icons.Outlined.Refresh, "Rescan") } }
                     Tip("XMB mode") { IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.mode.value = UiMode.XMB; app.fullscreen.value = true }) { Icon(Icons.Outlined.ViewCarousel, "XMB") } }
-                    Tip("Big Screen (F11)") { FilledIconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.mode.value = UiMode.BIGSCREEN; app.fullscreen.value = true }) { Icon(Icons.Outlined.Tv, "Big Screen") } }
+                    Tip("Big Screen · fullscreen with ${Shortcuts.fullscreen}") { FilledIconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.mode.value = UiMode.BIGSCREEN; app.fullscreen.value = true }) { Icon(Icons.Outlined.Tv, "Big Screen") } }
                     Tip("Settings (Ctrl+,)") { IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showSettings = SettingsSection.GENERAL }) { Icon(Icons.Outlined.Settings, "Settings") } }
                 }
 

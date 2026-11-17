@@ -1,5 +1,8 @@
 package cc.xdan.frontend
 
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.input.key.isAltPressed
+import cc.xdan.frontend.data.HostOs
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,6 +49,8 @@ fun main(args: Array<String>) {
         val state = rememberWindowState(width = 1440.dp, height = 900.dp)
         val fullscreen by app.fullscreen.collectAsState()
         LaunchedEffect(fullscreen) { state.placement = if (fullscreen) WindowPlacement.Fullscreen else WindowPlacement.Floating }
+        // Keep in sync when the OS changes it (macOS green button / Globe-F, window manager shortcuts).
+        LaunchedEffect(Unit) { snapshotFlow { state.placement }.collect { app.fullscreen.value = it == WindowPlacement.Fullscreen } }
         LaunchedEffect(Unit) { app.minimizeRequests.collect { state.isMinimized = it } }
 
         Window(
@@ -60,13 +65,18 @@ fun main(args: Array<String>) {
     }
 }
 
+/** Control-Command-F on macOS (the system's own "Enter Full Screen" shortcut), F11 elsewhere. */
+private fun isFullscreenShortcut(e: KeyEvent): Boolean =
+    if (HostOs.current == HostOs.MAC) e.key == Key.F && e.isMetaPressed && e.isCtrlPressed && !e.isAltPressed
+    else e.key == Key.F11
+
 /**
  * Keyboard → controller bridge. In list mode the keyboard belongs to normal Compose focus; in
  * Big Screen / XMB / in-game it drives the same navigation events as a gamepad.
  */
 private fun handleKey(app: AppController, e: KeyEvent): Boolean {
     val down = e.type == KeyEventType.KeyDown
-    if (down && e.key == Key.F11) { app.fullscreen.value = !app.fullscreen.value; return true }
+    if (down && isFullscreenShortcut(e)) { app.fullscreen.value = !app.fullscreen.value; return true }
     if (!app.settings.value.onboardingComplete) return false
     val inGame = app.session.value != null
     if (!inGame && app.mode.value == UiMode.LIST) return false
