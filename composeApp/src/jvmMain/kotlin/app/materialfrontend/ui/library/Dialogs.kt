@@ -1,5 +1,10 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package app.materialfrontend.ui.library
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -86,7 +91,7 @@ fun AddPortDialog(onDismiss: () -> Unit, onAdded: (Game) -> Unit) {
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(exe?.path ?: "No file chosen", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                    FilledTonalButton(onClick = ::choose) { Text("Browse") }
+                    FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = ::choose) { Text("Browse") }
                 }
                 if (exe != null) AssistChip(onClick = {}, label = { Text("Detected: $kind" + (platform?.let { " of a ${Platforms.get(it).shortName} game" } ?: "")) })
                 OutlinedTextField(title, { title = it }, label = { Text("Game title") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -103,7 +108,7 @@ fun AddPortDialog(onDismiss: () -> Unit, onAdded: (Game) -> Unit) {
                 onAdded(app.addPort(exe!!, title.trim(), platform!!, args))
             }) { Text("Add to library") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = onDismiss) { Text("Cancel") } },
     )
 }
 

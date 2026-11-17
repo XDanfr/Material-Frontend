@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package app.materialfrontend.ui
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.snap
 import app.materialfrontend.ui.brand.LaunchSplash
@@ -98,7 +102,7 @@ fun App(app: AppController, showSplash: Boolean = true) {
                                     Text(run.game.title, style = MaterialTheme.typography.headlineSmallEmphasized)
                                     Text("Running in ${run.label}. Play time is tracked when it closes.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        Button(onClick = { app.stopExternal() }) { Text("Close emulator") }
+                                        Button(shapes = ButtonDefaults.shapes(), onClick = { app.stopExternal() }) { Text("Close emulator") }
                                     }
                                     Text("Press Guide to close it from a controller.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                 }

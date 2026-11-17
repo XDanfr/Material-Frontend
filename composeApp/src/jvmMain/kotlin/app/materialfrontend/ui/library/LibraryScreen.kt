@@ -1,5 +1,10 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package app.materialfrontend.ui.library
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
+import app.materialfrontend.ui.components.pressBounce
 import app.materialfrontend.ui.components.platformIcon
 import app.materialfrontend.ui.brand.Wordmark
 import app.materialfrontend.ui.brand.BrandArtwork
@@ -229,7 +234,7 @@ fun LibraryScreen() {
                         search, { search = it }, Modifier.weight(1f).focusRequester(searchFocus),
                         placeholder = { Text("Search  ·  Ctrl+K", maxLines = 1) },
                         leadingIcon = { Icon(Icons.Outlined.Search, null) },
-                        trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Outlined.Close, "Clear") } },
+                        trailingIcon = { if (search.isNotEmpty()) IconButton(shapes = IconButtonDefaults.shapes(), onClick = { search = "" }) { Icon(Icons.Outlined.Close, "Clear") } },
                         singleLine = true, shape = RoundedCornerShape(28.dp),
                     )
                     SortMenu(settings.sort, settings.sortDescending) { o, d -> app.updateSettings { it.copy(sort = o, sortDescending = d) } }
@@ -239,11 +244,11 @@ fun LibraryScreen() {
                         SegmentedButton(settings.libraryView == LibraryView.LIST, { app.updateSettings { it.copy(libraryView = LibraryView.LIST) } }, SegmentedButtonDefaults.itemShape(1, 2),
                             icon = {}) { Icon(Icons.AutoMirrored.Outlined.ViewList, "List") }
                     }
-                    Tip("Add port / recomp") { IconButton(onClick = { showAddPort = true }) { Icon(Icons.Outlined.Add, "Add port") } }
-                    Tip("Rescan library") { IconButton(onClick = { app.rescan() }, enabled = !scan.running) { Icon(Icons.Outlined.Refresh, "Rescan") } }
-                    Tip("XMB mode") { IconButton(onClick = { app.mode.value = UiMode.XMB; app.fullscreen.value = true }) { Icon(Icons.Outlined.ViewCarousel, "XMB") } }
-                    Tip("Big Screen (F11)") { FilledIconButton(onClick = { app.mode.value = UiMode.BIGSCREEN; app.fullscreen.value = true }) { Icon(Icons.Outlined.Tv, "Big Screen") } }
-                    Tip("Settings (Ctrl+,)") { IconButton(onClick = { showSettings = SettingsSection.GENERAL }) { Icon(Icons.Outlined.Settings, "Settings") } }
+                    Tip("Add port / recomp") { IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showAddPort = true }) { Icon(Icons.Outlined.Add, "Add port") } }
+                    Tip("Rescan library") { IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.rescan() }, enabled = !scan.running) { Icon(Icons.Outlined.Refresh, "Rescan") } }
+                    Tip("XMB mode") { IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.mode.value = UiMode.XMB; app.fullscreen.value = true }) { Icon(Icons.Outlined.ViewCarousel, "XMB") } }
+                    Tip("Big Screen (F11)") { FilledIconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.mode.value = UiMode.BIGSCREEN; app.fullscreen.value = true }) { Icon(Icons.Outlined.Tv, "Big Screen") } }
+                    Tip("Settings (Ctrl+,)") { IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showSettings = SettingsSection.GENERAL }) { Icon(Icons.Outlined.Settings, "Settings") } }
                 }
 
                 Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -267,11 +272,11 @@ fun LibraryScreen() {
                         exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it } + fadeOut()) {
                         HorizontalFloatingToolbar(expanded = true, colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors()) {
                             Text("${multi.size} selected", Modifier.padding(horizontal = 12.dp), style = MaterialTheme.typography.labelLarge)
-                            IconButton(onClick = { multi.forEach { app.toggleFavorite(it) } }) { Icon(Icons.Outlined.FavoriteBorder, "Favourite") }
-                            IconButton(onClick = { app.scraper.scrape(games.filter { it.id in multi }, force = true) }) { Icon(Icons.Outlined.ImageSearch, "Re-scrape") }
-                            IconButton(onClick = { app.setHidden(multi.toSet(), collection != Collection.Hidden); multi.clear() }) { Icon(Icons.Outlined.VisibilityOff, "Hide") }
-                            IconButton(onClick = { app.removeGames(multi.toSet()); multi.clear() }) { Icon(Icons.Outlined.Delete, "Remove") }
-                            IconButton(onClick = { multi.clear() }) { Icon(Icons.Outlined.Close, "Clear selection") }
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { multi.forEach { app.toggleFavorite(it) } }) { Icon(Icons.Outlined.FavoriteBorder, "Favourite") }
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.scraper.scrape(games.filter { it.id in multi }, force = true) }) { Icon(Icons.Outlined.ImageSearch, "Re-scrape") }
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.setHidden(multi.toSet(), collection != Collection.Hidden); multi.clear() }) { Icon(Icons.Outlined.VisibilityOff, "Hide") }
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.removeGames(multi.toSet()); multi.clear() }) { Icon(Icons.Outlined.Delete, "Remove") }
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { multi.clear() }) { Icon(Icons.Outlined.Close, "Clear selection") }
                         }
                     }
                 }
@@ -326,7 +331,7 @@ private fun Tip(text: String, content: @Composable () -> Unit) {
 private fun SortMenu(order: SortOrder, desc: Boolean, onChange: (SortOrder, Boolean) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        FilledTonalButton(onClick = { open = true }) {
+        FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = { open = true }) {
             Icon(Icons.AutoMirrored.Outlined.Sort, null); Spacer(Modifier.width(8.dp)); Text(order.label + if (desc) " ↓" else "")
         }
         DropdownMenu(open, { open = false }) {
@@ -347,6 +352,7 @@ private fun GameCard(g: Game, selected: Boolean, onClick: (PointerKeyboardModifi
     Column(modifier.hoverable(interaction)) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(2f / 3f)
+                .pressBounce(interaction = interaction, depth = 0.94f)
                 .focusEmphasis(hovered || selected, baseCorner = 16.dp, focusedCorner = 28.dp, scale = if (selected) 1.0f else 1.04f)
                 .combinedClickable(interactionSource = interaction, indication = null, onClick = { onClick(windowInfo.keyboardModifiers) }, onDoubleClick = onDoubleClick),
         ) {
@@ -398,8 +404,8 @@ private fun EmptyState(libraryEmpty: Boolean, searching: Boolean, onSettings: ()
         Text(if (libraryEmpty) "Add a game folder, import Steam, or add a recompiled/decompiled port." else "Try another collection or search.",
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
         if (libraryEmpty) Row(Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FilledTonalButton(onClick = onSettings) { Text("Add game folders") }
-            TextButton(onClick = onAddPort) { Text("Add a port") }
+            FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = onSettings) { Text("Add game folders") }
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = onAddPort) { Text("Add a port") }
         }
     }
 }

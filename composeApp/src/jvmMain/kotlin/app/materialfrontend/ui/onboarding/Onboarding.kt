@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package app.materialfrontend.ui.onboarding
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import app.materialfrontend.ui.brand.Wordmark
 import app.materialfrontend.ui.brand.BrandArtwork
 import app.materialfrontend.ui.theme.FlexRecipes
@@ -148,11 +152,11 @@ fun Onboarding() {
                 }
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 48.dp, vertical = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (index > 0) TextButton(onClick = { index-- }) { Text("Back") }
+                if (index > 0) TextButton(shapes = ButtonDefaults.shapes(), onClick = { index-- }) { Text("Back") }
                 Spacer(Modifier.weight(1f))
-                if (!last && index > 0) TextButton(onClick = { index++ }) { Text("Skip") }
+                if (!last && index > 0) TextButton(shapes = ButtonDefaults.shapes(), onClick = { index++ }) { Text("Skip") }
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = { if (last) finish() else index++ }) {
+                Button(shapes = ButtonDefaults.shapes(), onClick = { if (last) finish() else index++ }) {
                     Text(if (last) "Scan and open library" else "Continue")
                     Spacer(Modifier.width(8.dp)); Icon(Icons.AutoMirrored.Outlined.ArrowForward, null)
                 }

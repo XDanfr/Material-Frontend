@@ -1,5 +1,11 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package app.materialfrontend.ui.library
 
+import app.materialfrontend.emulators.launchLabel
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
+import app.materialfrontend.ui.components.pressBounce
 import app.materialfrontend.ui.theme.FlexRecipes
 import app.materialfrontend.ui.theme.reactive
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -104,7 +110,7 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                 else CoverArt(game, Modifier.fillMaxSize(), preferWide = true)
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to MaterialTheme.colorScheme.surfaceContainerLow)))
                 logo?.let { Image(it, game.title, Modifier.align(Alignment.BottomStart).padding(16.dp).heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit) }
-                IconButton(onClick = onClose, Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
                     Icon(Icons.Outlined.Close, "Close", Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f), RoundedCornerShape(50)).padding(6.dp))
                 }
             }
@@ -151,7 +157,7 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                     }
                     FavoriteToggle(game.favorite) { app.toggleFavorite(game.id) }
                     Box {
-                        IconButton(onClick = { moreOpen = true }) { Icon(Icons.Outlined.MoreVert, "More") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { moreOpen = true }) { Icon(Icons.Outlined.MoreVert, "More") }
                         DropdownMenu(moreOpen, { moreOpen = false }) {
                             DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { renaming = true; moreOpen = false })
                             DropdownMenuItem(text = { Text("Re-fetch artwork") }, onClick = { app.scraper.scrape(listOf(game), force = true); moreOpen = false })
@@ -161,11 +167,11 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                         }
                     }
                 }
-                Text("Launches with ${current.label}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+                Text(launchLabel(current), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
 
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AssistChip(onClick = {}, label = { Text(formatPlayTime(game.playTimeSeconds)) })
-                    AssistChip(onClick = {}, label = { Text("Last played " + formatAgo(game.lastPlayed).replaceFirstChar { it.lowercase() }) })
+                    if (game.playTimeSeconds > 0) AssistChip(onClick = {}, label = { Text(formatPlayTime(game.playTimeSeconds)) })
+                    AssistChip(onClick = {}, label = { Text(game.lastPlayed?.let { "Last played " + formatAgo(it).replaceFirstChar { c -> c.lowercase() } } ?: "Never played") })
                     game.meta.genres.forEach { AssistChip(onClick = {}, label = { Text(it) }) }
                     game.meta.players?.let { AssistChip(onClick = {}, label = { Text("$it players") }) }
                 }
@@ -183,8 +189,8 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
         var t by remember { mutableStateOf(game.title) }
         AlertDialog(onDismissRequest = { renaming = false }, title = { Text("Rename") },
             text = { OutlinedTextField(t, { t = it }, singleLine = true) },
-            confirmButton = { Button(onClick = { app.rename(game.id, t.trim()); renaming = false }, enabled = t.isNotBlank()) { Text("Save") } },
-            dismissButton = { TextButton(onClick = { renaming = false }) { Text("Cancel") } })
+            confirmButton = { Button(shapes = ButtonDefaults.shapes(), onClick = { app.rename(game.id, t.trim()); renaming = false }, enabled = t.isNotBlank()) { Text("Save") } },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { renaming = false }) { Text("Cancel") } })
     }
 }
 
@@ -195,7 +201,8 @@ fun FavoriteToggle(checked: Boolean, onToggle: () -> Unit) {
     val morph = rememberMorph(MaterialShapes.Circle, MaterialShapes.Cookie9Sided)
     val p by animateFloatAsState(if (checked) 1f else 0f, MaterialTheme.motionScheme.defaultSpatialSpec())
     val bg = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
-    IconToggleButton(checked, { onToggle() }, Modifier.size(48.dp).graphicsLayer { rotationZ = p * 40f }.clip(MorphShape(morph, p)).background(bg)) {
+    val interaction = remember { MutableInteractionSource() }
+    IconToggleButton(checked, { onToggle() }, Modifier.size(48.dp).pressBounce(interaction = interaction, depth = 0.85f).graphicsLayer { rotationZ = p * 40f }.clip(MorphShape(morph, p)).background(bg), interactionSource = interaction) {
         Icon(if (checked) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder, "Favourite", Modifier.graphicsLayer { rotationZ = -p * 40f },
             tint = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
     }

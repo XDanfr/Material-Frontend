@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package app.materialfrontend.ui.settings
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import app.materialfrontend.ui.brand.CartridgeLoader
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
@@ -93,7 +97,7 @@ fun SwitchRow(title: String, subtitle: String? = null, checked: Boolean, onChang
 fun PlatformPicker(selected: String?, onPick: (String?) -> Unit, allowAuto: Boolean = true, label: String = "Auto-detect") {
     var open by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { open = true }) { Text(selected?.let { Platforms.get(it).name } ?: label) }
+        OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { open = true }) { Text(selected?.let { Platforms.get(it).name } ?: label) }
         DropdownMenu(open, { open = false }) {
             if (allowAuto) DropdownMenuItem(text = { Text(label) }, onClick = { onPick(null); open = false })
             Platforms.portTargets.forEach { p ->
@@ -118,12 +122,12 @@ fun RomFoldersPanel() {
                     Icon(Icons.Outlined.Folder, null, tint = MaterialTheme.colorScheme.primary)
                     Text(f.path, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                     PlatformPicker(f.platformOverride, { p -> app.updateSettings { s -> s.copy(romFolders = s.romFolders.toMutableList().also { it[i] = f.copy(platformOverride = p) }) } })
-                    IconButton(onClick = { app.updateSettings { s -> s.copy(romFolders = s.romFolders.filterIndexed { j, _ -> j != i }) } }) { Icon(Icons.Outlined.Delete, "Remove") }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.updateSettings { s -> s.copy(romFolders = s.romFolders.filterIndexed { j, _ -> j != i }) } }) { Icon(Icons.Outlined.Delete, "Remove") }
                 }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = {
+            FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = {
                 FilePicker.pickFolder("Add game folder")?.let { dir ->
                     app.updateSettings { s -> if (s.romFolders.any { it.path == dir.path }) s else s.copy(romFolders = s.romFolders + RomFolder(dir.path)) }
                 }
@@ -163,8 +167,8 @@ fun EmulatorsPanel(autoScan: Boolean = false) {
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FilledTonalButton(onClick = ::scan, enabled = !scanning) { Icon(Icons.Outlined.Search, null); Spacer(Modifier.width(8.dp)); Text("Scan for emulators") }
-            OutlinedButton(onClick = {
+            FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = ::scan, enabled = !scanning) { Icon(Icons.Outlined.Search, null); Spacer(Modifier.width(8.dp)); Text("Scan for emulators") }
+            OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = {
                 editing = EmulatorConfig("custom-" + System.currentTimeMillis(), "custom", "Custom emulator", "", "\"{rom}\"", emptyList())
             }) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Add manually") }
             if (scanning) { CartridgeLoader(Modifier.size(44.dp)); Text(progress, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
@@ -179,8 +183,8 @@ fun EmulatorsPanel(autoScan: Boolean = false) {
                 supportingContent = { Text("${e.platforms.joinToString { if (it == "*") "All systems" else Platforms.get(it).shortName }}  ·  ${e.flatpakId ?: e.path}", maxLines = 1) },
                 trailingContent = {
                     Row {
-                        IconButton(onClick = { editing = e }) { Icon(Icons.Outlined.Edit, "Edit") }
-                        IconButton(onClick = { app.updateSettings { s -> s.copy(emulators = s.emulators.filterNot { it.id == e.id }) } }) { Icon(Icons.Outlined.Delete, "Remove") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { editing = e }) { Icon(Icons.Outlined.Edit, "Edit") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { app.updateSettings { s -> s.copy(emulators = s.emulators.filterNot { it.id == e.id }) } }) { Icon(Icons.Outlined.Delete, "Remove") }
                     }
                 },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -209,19 +213,19 @@ fun EmulatorEditDialog(initial: EmulatorConfig, onDismiss: () -> Unit, onSave: (
                 OutlinedTextField(name, { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(path, { path = it }, label = { Text("Executable / AppImage / .app") }, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { FilePicker.pickFile("Choose emulator")?.let { path = it.path } }) { Icon(Icons.Outlined.Folder, "Browse") }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { FilePicker.pickFile("Choose emulator")?.let { path = it.path } }) { Icon(Icons.Outlined.Folder, "Browse") }
                 }
                 OutlinedTextField(args, { args = it }, label = { Text("Arguments") }, supportingText = { Text("Tokens: {rom} {romdir} {romname} {core}") }, modifier = Modifier.fillMaxWidth())
                 def?.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary) }
                 Text("Systems: " + platforms.joinToString { Platforms.get(it).shortName }.ifEmpty { "none" }, style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PlatformPicker(null, { p -> if (p != null && p !in platforms) platforms = platforms + p }, allowAuto = false, label = "Add system")
-                    if (platforms.isNotEmpty()) TextButton(onClick = { platforms = platforms.dropLast(1) }) { Text("Remove last") }
+                    if (platforms.isNotEmpty()) TextButton(shapes = ButtonDefaults.shapes(), onClick = { platforms = platforms.dropLast(1) }) { Text("Remove last") }
                 }
             }
         },
-        confirmButton = { Button(onClick = { onSave(initial.copy(name = name, path = path, args = args, platforms = platforms)) }, enabled = path.isNotBlank() && platforms.isNotEmpty()) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { Button(shapes = ButtonDefaults.shapes(), onClick = { onSave(initial.copy(name = name, path = path, args = args, platforms = platforms)) }, enabled = path.isNotBlank() && platforms.isNotEmpty()) { Text("Save") } },
+        dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
@@ -263,7 +267,7 @@ fun CoresPanel(preselectRecommended: Boolean = false) {
                     app.toast("Cores installed")
                 }
             }) { Icon(Icons.Outlined.Download, null); Spacer(Modifier.width(8.dp)); Text("Install selected (${selected.values.count { it }})") }
-            TextButton(onClick = { recommended.forEach { if (!CoreCatalog.isInstalled(it)) selected[it] = true } }) { Text("Select recommended") }
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = { recommended.forEach { if (!CoreCatalog.isInstalled(it)) selected[it] = true } }) { Text("Select recommended") }
         }
         val _r = refresh
         CoreCatalog.all.filter { it.platforms.isNotEmpty() }.forEach { core ->
@@ -280,7 +284,7 @@ fun CoresPanel(preselectRecommended: Boolean = false) {
                         AnimatedVisibility(core.id in progress) { LinearWavyProgressIndicator(progress = { progress[core.id] ?: 0f }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) }
                     }
                 },
-                trailingContent = { if (installed) TextButton(onClick = { app.coreInstaller.uninstall(core.id); refresh++ }) { Text("Remove") } },
+                trailingContent = { if (installed) TextButton(shapes = ButtonDefaults.shapes(), onClick = { app.coreInstaller.uninstall(core.id); refresh++ }) { Text("Remove") } },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             )
         }
@@ -300,8 +304,8 @@ fun BiosPanel() {
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(dir.path, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            FilledTonalButton(onClick = { FilePicker.pickFolder("BIOS folder")?.let { d -> app.updateSettings { it.copy(biosDir = d.path) } } }) { Text("Change") }
-            OutlinedButton(onClick = { refresh++ }) { Text("Re-check") }
+            FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = { FilePicker.pickFolder("BIOS folder")?.let { d -> app.updateSettings { it.copy(biosDir = d.path) } } }) { Text("Change") }
+            OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { refresh++ }) { Text("Re-check") }
         }
         val _r = refresh
         BiosCatalog.all.groupBy { it.platformId }.forEach { (pid, files) ->
