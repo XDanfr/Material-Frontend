@@ -1,5 +1,6 @@
 package cc.xdan.frontend.ui.brand
 
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -109,6 +110,9 @@ private fun coloured(text: AnnotatedString, material: androidx.compose.ui.graphi
     addStyle(SpanStyle(color = material), 0, "Material".length)
     addStyle(SpanStyle(color = frontend), "Material".length, text.length)
 }
+
+/** True while the launch animation covers the screen (provided by App; setup's welcome step waits for it). */
+val LocalSplashActive = compositionLocalOf { false }
 
 /** Lockup sizes shared by the launch animation and setup's welcome step (so the hand-off lines up). */
 val LOCKUP_ICON = 150.dp

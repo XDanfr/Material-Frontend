@@ -83,9 +83,6 @@ class AppController {
         }
     }
 
-    /** True while the launch animation is on screen (setup's welcome step waits for it). */
-    val splashActive = MutableStateFlow(false)
-
     private val _coreInstall = MutableStateFlow<CoreInstallProgress?>(null)
     val coreInstall: StateFlow<CoreInstallProgress?> = _coreInstall.asStateFlow()
 

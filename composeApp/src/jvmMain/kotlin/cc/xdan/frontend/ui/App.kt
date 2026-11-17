@@ -2,6 +2,7 @@
 
 package cc.xdan.frontend.ui
 
+import cc.xdan.frontend.ui.brand.LocalSplashActive
 import cc.xdan.frontend.ui.emulation.LaunchingOverlay
 import cc.xdan.frontend.LaunchingState
 import androidx.compose.material3.IconButtonDefaults
@@ -72,6 +73,7 @@ fun App(app: AppController, showSplash: Boolean = true) {
 
     CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides seed) {
         MaterialFrontendTheme(settings, seed.value) {
+            CompositionLocalProvider(LocalSplashActive provides splash) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
                 Box(Modifier.fillMaxSize()) {
                     val motion = MaterialTheme.motionScheme
@@ -122,7 +124,6 @@ fun App(app: AppController, showSplash: Boolean = true) {
                     SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (mode == UiMode.LIST) 24.dp else 96.dp))
 
                     // Launch animation over the (already composing) app; fades and lifts away when done.
-                    LaunchedEffect(splash) { app.splashActive.value = splash }
                     // During setup the logo hands off to the welcome step (same position), so just fade; otherwise lift away.
                     val handOff = !settings.onboardingComplete
                     AnimatedVisibility(splash, enter = fadeIn(snap()),
@@ -131,6 +132,7 @@ fun App(app: AppController, showSplash: Boolean = true) {
                         LaunchSplash(onDone = { splash = false })
                     }
                 }
+            }
             }
         }
     }

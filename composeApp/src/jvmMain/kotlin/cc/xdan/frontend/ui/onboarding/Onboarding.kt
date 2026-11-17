@@ -1,5 +1,8 @@
 package cc.xdan.frontend.ui.onboarding
 
+import androidx.compose.runtime.withFrameMillis
+import androidx.compose.animation.core.Animatable
+import cc.xdan.frontend.ui.brand.LocalSplashActive
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -366,22 +369,32 @@ private fun ChoiceRow(content: @Composable () -> Unit) =
 
 // ---------------------------------------------------------------- steps
 
+/** A pause measured on the frame clock (deterministic, unlike delay()). */
+private suspend fun framePause(ms: Long) {
+    val start = withFrameMillis { it }
+    while (withFrameMillis { it } - start < ms) { /* wait a frame */ }
+}
+
 /** Continues the launch animation: the logo rises and "Welcome" + Continue appear. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun Welcome(s: StepScope, next: () -> Unit) {
-    val app = LocalApp.current
-    var raised by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        app.splashActive.first { !it }   // wait for the launch animation to hand over
-        delay(120)
-        raised = true
+    // Sequence on the frame clock: let the launch animation fade, glide the logo up, then bring in
+    // "Welcome" + Continue (rising and fading in, no overshoot on the fade).
+    val splashActive = LocalSplashActive.current
+    val rise = remember { Animatable(0f) }
+    val appear = remember { Animatable(0f) }
+    val spatial = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    LaunchedEffect(splashActive) {
+        if (splashActive) return@LaunchedEffect
+        framePause(220)                 // the launch animation's fade-out
+        rise.animateTo(1f, spatial)     // logo glides up…
+        appear.animateTo(1f, effects)   // …then the welcome and button arrive
     }
-    val rise by animateFloatAsState(if (raised) 1f else 0f, MaterialTheme.motionScheme.slowSpatialSpec())
-    val appear by animateFloatAsState(if (raised) 1f else 0f, MaterialTheme.motionScheme.slowEffectsSpec())
     Box(Modifier.fillMaxSize()) {
-        WordmarkLockup(Modifier.align(Alignment.Center).offset(y = (-110).dp * rise))
-        Column(Modifier.align(Alignment.Center).offset(y = 70.dp + 30.dp * (1 - appear)).alpha(appear),
+        WordmarkLockup(Modifier.align(Alignment.Center).offset(y = (-110).dp * rise.value))
+        Column(Modifier.align(Alignment.Center).offset(y = 70.dp + 24.dp * (1 - appear.value)).alpha(appear.value.coerceIn(0f, 1f)),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(28.dp)) {
             Text("Welcome", style = MaterialTheme.typography.displaySmallEmphasized, color = MaterialTheme.colorScheme.onSurface)
             with(s) { PillButton("Continue", primary = true, onClick = next) }
