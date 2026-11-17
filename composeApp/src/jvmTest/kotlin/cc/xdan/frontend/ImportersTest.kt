@@ -1,11 +1,11 @@
-package app.materialfrontend
+package cc.xdan.frontend
 
-import app.materialfrontend.data.BinaryVdf
-import app.materialfrontend.data.Gamelists
-import app.materialfrontend.data.LauncherSources
-import app.materialfrontend.emulators.Launchers
-import app.materialfrontend.model.Game
-import app.materialfrontend.model.RomFolder
+import cc.xdan.frontend.data.BinaryVdf
+import cc.xdan.frontend.data.Gamelists
+import cc.xdan.frontend.data.LauncherSources
+import cc.xdan.frontend.emulators.Launchers
+import cc.xdan.frontend.model.Game
+import cc.xdan.frontend.model.RomFolder
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files

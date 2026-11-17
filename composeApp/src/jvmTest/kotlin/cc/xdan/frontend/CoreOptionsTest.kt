@@ -1,6 +1,6 @@
-package app.materialfrontend
+package cc.xdan.frontend
 
-import app.materialfrontend.libretro.CoreOptionParser
+import cc.xdan.frontend.libretro.CoreOptionParser
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS

@@ -1,10 +1,10 @@
-package app.materialfrontend
+package cc.xdan.frontend
 
-import app.materialfrontend.emulators.CoreCatalog
-import app.materialfrontend.emulators.CoreInstaller
-import app.materialfrontend.input.ControllerManager
-import app.materialfrontend.libretro.EmulationSession
-import app.materialfrontend.scraper.createHttpClient
+import cc.xdan.frontend.emulators.CoreCatalog
+import cc.xdan.frontend.emulators.CoreInstaller
+import cc.xdan.frontend.input.ControllerManager
+import cc.xdan.frontend.libretro.EmulationSession
+import cc.xdan.frontend.scraper.createHttpClient
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlin.test.Test

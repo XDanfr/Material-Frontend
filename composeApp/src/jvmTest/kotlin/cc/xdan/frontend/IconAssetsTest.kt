@@ -1,6 +1,6 @@
-package app.materialfrontend
+package cc.xdan.frontend
 
-import app.materialfrontend.ui.brand.IconRaster
+import cc.xdan.frontend.ui.brand.IconRaster
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertTrue

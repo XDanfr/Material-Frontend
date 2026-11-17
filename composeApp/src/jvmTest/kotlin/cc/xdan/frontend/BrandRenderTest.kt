@@ -1,4 +1,4 @@
-package app.materialfrontend
+package cc.xdan.frontend
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -12,9 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import app.materialfrontend.ui.brand.BrandIcons
-import app.materialfrontend.ui.brand.IconTransition
-import app.materialfrontend.ui.brand.drawTransition
+import cc.xdan.frontend.ui.brand.BrandIcons
+import cc.xdan.frontend.ui.brand.IconTransition
+import cc.xdan.frontend.ui.brand.drawTransition
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
 import kotlin.test.Test

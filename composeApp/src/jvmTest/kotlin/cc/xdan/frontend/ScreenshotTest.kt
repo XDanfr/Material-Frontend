@@ -1,13 +1,20 @@
-package app.materialfrontend
+package cc.xdan.frontend
 
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
-import app.materialfrontend.input.Nav
-import app.materialfrontend.model.Game
-import app.materialfrontend.model.GameKind
-import app.materialfrontend.model.GameMeta
-import app.materialfrontend.model.UiMode
-import app.materialfrontend.ui.App
+import cc.xdan.frontend.input.Nav
+import cc.xdan.frontend.ui.emulation.LaunchingOverlay
+import cc.xdan.frontend.ui.theme.LocalApp
+import cc.xdan.frontend.ui.theme.LocalArtworkSeed
+import cc.xdan.frontend.ui.theme.MaterialFrontendTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import cc.xdan.frontend.model.Game
+import cc.xdan.frontend.model.GameKind
+import cc.xdan.frontend.model.GameMeta
+import cc.xdan.frontend.model.UiMode
+import cc.xdan.frontend.ui.App
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
 import kotlin.test.Test
@@ -60,6 +67,19 @@ class ScreenshotTest {
         repeat(50) { press.render(pt); pt += 16_000_000L; Thread.sleep(8) }
         File(out, "press-details.png").writeBytes(press.render(pt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         press.close()
+
+        // Launching screen (Big Screen / XMB) for a game launching through an emulator.
+        val launching = ImageComposeScene(1440, 900, Density(1f)) {
+            CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
+                MaterialFrontendTheme(app.settings.value, null) {
+                    LaunchingOverlay(LaunchingState(app.library.value.first { it.platformId == "gba" }, "mGBA", LaunchKind.URI))
+                }
+            }
+        }
+        var lt = 0L
+        repeat(40) { launching.render(lt); lt += 16_000_000L }
+        File(out, "launching.png").writeBytes(launching.render(lt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        launching.close()
 
         // Launch animation at key moments of its timeline (frame-clock driven).
         app.updateSettings { it.copy(onboardingComplete = true) }

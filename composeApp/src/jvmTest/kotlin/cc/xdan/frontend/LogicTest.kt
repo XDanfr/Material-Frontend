@@ -1,11 +1,11 @@
-package app.materialfrontend
+package cc.xdan.frontend
 
-import app.materialfrontend.data.Ports
-import app.materialfrontend.data.RomScanner
-import app.materialfrontend.data.TitleCleaner
-import app.materialfrontend.data.Vdf
-import app.materialfrontend.emulators.Launchers
-import app.materialfrontend.model.RomFolder
+import cc.xdan.frontend.data.Ports
+import cc.xdan.frontend.data.RomScanner
+import cc.xdan.frontend.data.TitleCleaner
+import cc.xdan.frontend.data.Vdf
+import cc.xdan.frontend.emulators.Launchers
+import cc.xdan.frontend.model.RomFolder
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
