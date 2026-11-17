@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -337,7 +338,7 @@ private fun StepScope.PillButton(label: String, primary: Boolean, enabled: Boole
 @Composable
 private fun StepScope.Choice(
     title: String, subtitle: String?, selected: Boolean, onClick: () -> Unit,
-    icon: ImageVector? = null, tile: BrandTile? = null,
+    icon: ImageVector? = null, tile: BrandTile? = null, preview: (@Composable (Boolean) -> Unit)? = null,
 ) {
     val i = register(onClick)
     choices++
@@ -363,6 +364,8 @@ private fun StepScope.Choice(
             // Every card's icon is the same rounded tile: the brand tiles as designed, or a tonal tile
             // with the same corner ratio (112/512) holding a Material icon.
             when {
+                preview != null -> Box(Modifier.fillMaxWidth().height(if (big) 120.dp else 104.dp).clip(RoundedCornerShape(16.dp))
+                    .background(cs.surfaceContainerLowest)) { preview(selected) }
                 // Hairline edge so dark tiles (play stack) still read as a full square on dark cards.
                 tile != null -> BrandTileImage(tile, Modifier.size(iconSize)
                     .border(1.dp, cs.outlineVariant, RoundedCornerShape(iconSize * 0.22f)))
@@ -446,7 +449,7 @@ private fun UsageStep(s: StepScope, settings: Settings, back: () -> Unit, next: 
 private fun Look(s: StepScope, settings: Settings, back: () -> Unit, next: () -> Unit) = with(s) {
     val app = LocalApp.current
     fun pick(m: ThemeMode) = app.updateSettings { it.copy(themeMode = m) }
-    Question("Pick a look", "Colours also follow the artwork of the game you're on. Accent colours are in Settings.", back, next) {
+    Question("Light or dark?", "Colours also follow the artwork of the game you're on. Accent colours are in Settings.", back, next) {
         ChoiceRow {
             Choice("Automatic", "Follow your system", settings.themeMode == ThemeMode.SYSTEM, { pick(ThemeMode.SYSTEM) }, Icons.Outlined.BrightnessAuto)
             Choice("Light", null, settings.themeMode == ThemeMode.LIGHT, { pick(ThemeMode.LIGHT) }, Icons.Outlined.LightMode)
@@ -460,20 +463,71 @@ private fun Look(s: StepScope, settings: Settings, back: () -> Unit, next: () ->
 private fun Controls(s: StepScope, settings: Settings, back: () -> Unit, next: () -> Unit) = with(s) {
     val app = LocalApp.current
     val pads by app.controllers.controllers.collectAsState()
-    val padMode = settings.defaultMode != UiMode.LIST
-    fun pick(controller: Boolean) = app.updateSettings {
-        it.copy(defaultMode = if (controller) UiMode.BIGSCREEN else UiMode.LIST, bigScreenOnController = true, startFullscreen = controller)
-    }
+    fun pick(m: UiMode) = app.updateSettings { it.copy(defaultMode = m, bigScreenOnController = true, startFullscreen = m != UiMode.LIST) }
     val connected = pads.firstOrNull()
-    Question("How will you play?", connected?.let { "${it.typeLabel} connected — button prompts will match it." }
-        ?: "Controllers are detected the moment you plug one in.", back, next) {
+    Question("Pick a theme", connected?.let { "${it.typeLabel} connected — Big Screen and XMB are made for it. You can switch any time." }
+        ?: "How the app opens. You can switch between them any time.", back, next) {
         ChoiceRow {
-            Choice("Controller", "Starts in Big Screen, made for the couch", padMode, { pick(true) }, Icons.Outlined.SportsEsports)
-            Choice("Keyboard & mouse", "Starts in the Library view, made for a desk", !padMode, { pick(false) }, Icons.Outlined.Keyboard)
+            Choice("Library", "A grid with sorting and search, made for keyboard and mouse", settings.defaultMode == UiMode.LIST,
+                { pick(UiMode.LIST) }, preview = { LibrarySkeleton(it) })
+            Choice("Big Screen", "Shelves of games and big art, made for a controller on the couch", settings.defaultMode == UiMode.BIGSCREEN,
+                { pick(UiMode.BIGSCREEN) }, preview = { BigScreenSkeleton(it) })
+            Choice("XMB", "Categories across, games down — the classic console menu", settings.defaultMode == UiMode.XMB,
+                { pick(UiMode.XMB) }, preview = { XmbSkeleton(it) })
         }
-        if (connected != null) Row(Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (connected != null) Row(Modifier.padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             listOf(Pad.SOUTH, Pad.EAST, Pad.WEST, Pad.NORTH).forEach { ButtonGlyph(it, connected.family) }
             Text(connected.name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+// ---- Skeleton previews: blank tiles and round pills where titles would be ----
+
+@Composable private fun skeletonTile(selected: Boolean) = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f) else MaterialTheme.colorScheme.surfaceContainerHighest
+@Composable private fun skeletonPill(selected: Boolean) = if (selected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+
+@Composable
+private fun Pill(w: Dp, selected: Boolean, h: Dp = 5.dp) = Box(Modifier.size(w, h).clip(CircleShape).background(skeletonPill(selected)))
+
+@Composable
+private fun Tile(w: Dp, h: Dp, selected: Boolean, r: Dp = 4.dp) = Box(Modifier.size(w, h).clip(RoundedCornerShape(r)).background(skeletonTile(selected)))
+
+@Composable
+private fun LibrarySkeleton(sel: Boolean) = Row(Modifier.fillMaxSize().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.width(36.dp).fillMaxHeight().clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(5.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)) { repeat(5) { Pill(if (it == 0) 26.dp else 20.dp, sel && it == 0) } }
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Pill(70.dp, sel, 6.dp)
+        repeat(2) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(4) { Column(verticalArrangement = Arrangement.spacedBy(3.dp)) { Tile(22.dp, 28.dp, sel); Pill(18.dp, sel, 3.dp) } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BigScreenSkeleton(sel: Boolean) = Column(Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Pill(90.dp, sel, 9.dp); Pill(60.dp, sel); Spacer(Modifier.height(6.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
+        Box(Modifier.size(34.dp, 46.dp).border(2.dp, if (sel) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.outline, RoundedCornerShape(7.dp))
+            .padding(3.dp)) { Tile(28.dp, 40.dp, sel, 5.dp) }
+        repeat(4) { Tile(28.dp, 38.dp, sel, 5.dp) }
+    }
+}
+
+@Composable
+private fun XmbSkeleton(sel: Boolean) = Column(Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        repeat(5) { i -> Box(Modifier.size(if (i == 1) 20.dp else 14.dp).clip(CircleShape).background(if (i == 1) skeletonTile(sel) else MaterialTheme.colorScheme.surfaceContainerHighest)) }
+    }
+    Column(Modifier.padding(start = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(4) { i ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Tile(if (i == 0) 20.dp else 14.dp, if (i == 0) 20.dp else 14.dp, sel && i == 0)
+                Pill(if (i == 0) 56.dp else 40.dp, sel && i == 0, if (i == 0) 6.dp else 4.dp)
+            }
         }
     }
 }
@@ -643,7 +697,7 @@ private fun Artwork(s: StepScope, settings: Settings, back: () -> Unit, next: ()
 @Composable
 private fun Done(s: StepScope, settings: Settings, back: () -> Unit, finish: () -> Unit) = with(s) {
     val usage = when (settings.usage) { Usage.GAMES -> "your PC games"; Usage.EMULATION -> "your emulated games"; else -> "all your games" }
-    val start = if (settings.defaultMode == UiMode.LIST) "the Library view" else "Big Screen"
+    val start = when (settings.defaultMode) { UiMode.LIST -> "the Library view"; UiMode.BIGSCREEN -> "Big Screen"; UiMode.XMB -> "XMB" }
     Question("You're all set", "We'll gather $usage and fetch artwork in the background. You'll start in $start.",
         back, finish, continueLabel = "Let's play") {
         BrandMorph(BrandIcons.cartridge, Modifier.size(if (big) 220.dp else 180.dp))
