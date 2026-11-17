@@ -21,6 +21,12 @@ sealed interface LaunchTarget {
     data class Unavailable(val reason: String) : LaunchTarget { override val label = "Unavailable" }
 }
 
+/** "Launches with mGBA", or why it can't launch yet. */
+fun launchLabel(t: LaunchTarget): String = when (t) {
+    is LaunchTarget.Unavailable -> "${t.reason} — install a core or add an emulator in Settings"
+    else -> "Launches with ${t.label}"
+}
+
 object Launchers {
     /** Every way this game could be launched, best first. Keys are "core:<id>" / "emu:<configId>". */
     fun options(game: Game, settings: Settings): List<Pair<String, LaunchTarget>> {

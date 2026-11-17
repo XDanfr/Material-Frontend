@@ -1,5 +1,12 @@
 package app.materialfrontend.ui.bigscreen
 
+import app.materialfrontend.emulators.launchLabel
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.CompositionLocalProvider
+import app.materialfrontend.ui.components.PRESS_DELAY_MS
+import app.materialfrontend.ui.components.LocalPressPulse
+import app.materialfrontend.ui.components.pressBounce
 import app.materialfrontend.ui.brand.Wordmark
 import app.materialfrontend.ui.brand.BrandArtwork
 import app.materialfrontend.ui.theme.FlexRecipes
@@ -175,9 +182,12 @@ fun BigScreen() {
     }
 
     val currentFocused by rememberUpdatedState(focused)
+    var pressPulse by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         app.controllers.events.collect { e ->
             val top = overlays.lastOrNull()
+            // Confirm: bounce the focused control, and let it play before the action changes the screen.
+            if (e.nav == Nav.CONFIRM && top != Overlay.Search) { pressPulse++; delay(PRESS_DELAY_MS) }
             when (top) {
                 is Overlay.Details -> {
                     val actions = 3
@@ -246,6 +256,7 @@ fun BigScreen() {
         }
     }
 
+    CompositionLocalProvider(LocalPressPulse provides pressPulse) {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Backdrop(focused)
         Column(Modifier.fillMaxSize()) {
@@ -282,6 +293,7 @@ fun BigScreen() {
                 Overlay.Search -> SearchOverlay(games.filter { !it.hidden }, onClose = { overlays.remove(Overlay.Search) }) { g -> overlays.remove(Overlay.Search); overlays += Overlay.Details(g) }
             }
         }
+    }
     }
 }
 
@@ -368,7 +380,7 @@ private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused
                     LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 56.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         itemsIndexed(shelf.games, key = { _, g -> g.id }) { c, g ->
                             val f = active && c == col
-                            Box(Modifier.width(if (active) 168.dp else 132.dp).aspectRatio(2f / 3f)
+                            Box(Modifier.width(if (active) 168.dp else 132.dp).aspectRatio(2f / 3f).pressBounce(LocalPressPulse.current, f)
                                 .focusEmphasis(f, baseCorner = 16.dp, focusedCorner = 28.dp, scale = 1.1f)
                                 .clickable { onClick(r, c) }) {
                                 CoverArt(g, Modifier.fillMaxSize())
@@ -420,7 +432,7 @@ private fun LibraryTab(platforms: List<String?>, platformIdx: Int, games: List<G
             LazyVerticalGrid(GridCells.Fixed(n), state = state, contentPadding = PaddingValues(top = 12.dp, bottom = 140.dp),
                 horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 itemsIndexed(games, key = { _, g -> g.id }) { i, g ->
-                    Box(Modifier.aspectRatio(2f / 3f).focusEmphasis(i == index, 16.dp, 28.dp, 1.08f).clickable { onClick(i) }) { CoverArt(g, Modifier.fillMaxSize()) }
+                    Box(Modifier.aspectRatio(2f / 3f).pressBounce(LocalPressPulse.current, i == index).focusEmphasis(i == index, 16.dp, 28.dp, 1.08f).clickable { onClick(i) }) { CoverArt(g, Modifier.fillMaxSize()) }
                 }
             }
         }
@@ -445,14 +457,14 @@ private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack:
                     val l = logo
                     if (l != null) Image(l, g.title, Modifier.heightIn(max = 140.dp).widthIn(max = 560.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
                     else Text(g.title, style = MaterialTheme.typography.displayMediumEmphasized)
-                    Text(listOfNotNull(Platforms.get(g.platformId).name, g.meta.releaseYear?.toString(), g.meta.developer, "Played ${formatAgo(g.lastPlayed).lowercase()}", formatPlayTime(g.playTimeSeconds)).joinToString("  ·  "),
+                    Text(listOfNotNull(Platforms.get(g.platformId).name, g.meta.releaseYear?.toString(), g.meta.developer, g.lastPlayed?.let { "Played ${formatAgo(it).lowercase()}" } ?: "Never played", formatPlayTime(g.playTimeSeconds).takeIf { g.playTimeSeconds > 0 }).joinToString("  ·  "),
                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         BigButton("Play", focus == 0, primary = true) { onAction(0); onPlay() }
                         BigButton(if (g.favorite) "Favourited" else "Favourite", focus == 1) { onAction(1); app.toggleFavorite(g.id) }
                         BigButton("Launch with…", focus == 2) { onAction(2); onLaunchWith() }
                     }
-                    Text("Launches with ${target.label}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
+                    Text(launchLabel(target), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
                     g.meta.description?.let { Text(it, style = MaterialTheme.typography.bodyLarge, maxLines = 5, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 900.dp)) }
                 }
             }
@@ -467,7 +479,9 @@ private fun BigButton(label: String, focused: Boolean, primary: Boolean = false,
     val corner by androidx.compose.animation.core.animateDpAsState(if (focused) 20.dp else 32.dp, MaterialTheme.motionScheme.fastSpatialSpec())
     val bg = when { focused && primary -> MaterialTheme.colorScheme.primary; focused -> MaterialTheme.colorScheme.secondaryContainer; else -> MaterialTheme.colorScheme.surfaceContainerHigh }
     val fg = when { focused && primary -> MaterialTheme.colorScheme.onPrimary; focused -> MaterialTheme.colorScheme.onSecondaryContainer; else -> MaterialTheme.colorScheme.onSurface }
-    Surface(onClick = onClick, shape = RoundedCornerShape(corner), color = bg, modifier = Modifier.height(64.dp).graphicsLayer { scaleX = scale; scaleY = scale }) {
+    val interaction = remember { MutableInteractionSource() }
+    Surface(onClick = onClick, shape = RoundedCornerShape(corner), color = bg, interactionSource = interaction,
+        modifier = Modifier.height(64.dp).graphicsLayer { scaleX = scale; scaleY = scale }.pressBounce(LocalPressPulse.current, focused, interaction)) {
         Box(Modifier.padding(horizontal = 32.dp), contentAlignment = Alignment.Center) {
             Text(label, style = MaterialTheme.typography.titleLarge.reactive(focused) { copy(wght = 760f, wdth = 112f, rond = 100f) }, color = fg)
         }
@@ -512,8 +526,9 @@ fun SideSheet(title: String, content: @Composable () -> Unit) {
 fun SheetItem(label: String, focused: Boolean, onClick: () -> Unit) {
     val bg by animateFloatAsState(if (focused) 1f else 0f, MaterialTheme.motionScheme.fastEffectsSpec())
     val corner by androidx.compose.animation.core.animateDpAsState(if (focused) 16.dp else 28.dp, MaterialTheme.motionScheme.fastSpatialSpec())
-    Text(label, Modifier.fillMaxWidth().clip(RoundedCornerShape(corner)).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = bg))
-        .clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
+    val interaction = remember { MutableInteractionSource() }
+    Text(label, Modifier.fillMaxWidth().pressBounce(LocalPressPulse.current, focused, interaction, depth = 0.95f).clip(RoundedCornerShape(corner)).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = bg))
+        .clickable(interactionSource = interaction, indication = LocalIndication.current, onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp),
         style = MaterialTheme.typography.titleMedium.reactive(focused, FlexRecipes.emphasize),
         color = if (focused) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface)
 }
@@ -528,7 +543,8 @@ private fun SearchOverlay(games: List<Game>, onClose: () -> Unit, onOpen: (Game)
     var kr by remember { mutableIntStateOf(0) }
     var kc by remember { mutableIntStateOf(0) }
     val results = remember(query, games) { if (query.isBlank()) emptyList() else LibraryQuery.filter(games, Collection.All, query).take(8) }
-    fun press(k: String) { query = when (k) { "SPACE" -> "$query "; "⌫" -> query.dropLast(1); else -> query + k.lowercase() } }
+    var keyPulse by remember { mutableIntStateOf(0) }
+    fun press(k: String) { keyPulse++; query = when (k) { "SPACE" -> "$query "; "⌫" -> query.dropLast(1); else -> query + k.lowercase() } }
     LaunchedEffect(Unit) {
         app.controllers.events.collect { e ->
             when (e.nav) {
@@ -554,7 +570,7 @@ private fun SearchOverlay(games: List<Game>, onClose: () -> Unit, onOpen: (Game)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             rowKeys.forEachIndexed { c, k ->
                                 val f = r == kr && c == kc
-                                Box(Modifier.size(if (k.length > 1) 112.dp else 52.dp, 52.dp).focusEmphasis(f, 26.dp, 14.dp, 1.1f)
+                                Box(Modifier.size(if (k.length > 1) 112.dp else 52.dp, 52.dp).pressBounce(keyPulse, f, depth = 0.85f).focusEmphasis(f, 26.dp, 14.dp, 1.1f)
                                     .background(if (f) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
                                     .clickable { kr = r; kc = c; press(k) }, contentAlignment = Alignment.Center) {
                                     Text(k, style = MaterialTheme.typography.titleMedium.reactive(f) { copy(wght = 860f, wdth = 114f, rond = 100f) })

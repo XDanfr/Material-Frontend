@@ -1,5 +1,8 @@
 package app.materialfrontend.ui.xmb
 
+import kotlinx.coroutines.delay
+import app.materialfrontend.ui.components.PRESS_DELAY_MS
+import app.materialfrontend.ui.components.pressBounce
 import app.materialfrontend.ui.components.platformIcon
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.Palette
@@ -120,9 +123,11 @@ fun XmbScreen() {
     ArtworkSeedEffect((focusedItem as? GameItem)?.game?.assets?.cover)
 
     val cats by rememberUpdatedState(categories)
+    var pressPulse by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         app.controllers.events.collect { e ->
             val c = cats.getOrNull(cat) ?: return@collect
+            if (e.nav == Nav.CONFIRM) { pressPulse++; delay(PRESS_DELAY_MS) }
             when (e.nav) {
                 Nav.LEFT -> cat = (cat - 1).coerceAtLeast(0)
                 Nav.RIGHT -> cat = (cat + 1).coerceAtMost(cats.lastIndex)
@@ -169,7 +174,7 @@ fun XmbScreen() {
                 val rel = i - (itemIdx[cat] ?: 0)
                 val y by animateFloatAsState(if (rel < 0) rel * 84f - 150f else rel * 84f + 70f + (if (rel > 0) 72f else 0f), MaterialTheme.motionScheme.defaultSpatialSpec())
                 if (abs(rel) <= 7) {
-                    Row(Modifier.offset(anchorX - 48.dp, barY + y.dp).alpha(if (sel) 1f else 0.75f - abs(rel) * 0.06f),
+                    Row(Modifier.offset(anchorX - 48.dp, barY + y.dp).pressBounce(pressPulse, sel, depth = 0.92f).alpha(if (sel) 1f else 0.75f - abs(rel) * 0.06f),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         if (item is GameItem) CoverArt(item.game, Modifier.size(if (sel) 96.dp else 56.dp, if (sel) 136.dp else 76.dp).clip(RoundedCornerShape(if (sel) 20.dp else 12.dp)), maxDim = 300)
                         else if (item is ActionItem) Box(Modifier.size(if (sel) 72.dp else 56.dp).clip(RoundedCornerShape(if (sel) 20.dp else 16.dp))

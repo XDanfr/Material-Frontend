@@ -1,5 +1,13 @@
 package app.materialfrontend.ui.components
 
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.VideogameAsset
 import androidx.compose.material.icons.outlined.Gamepad
@@ -113,6 +121,35 @@ fun Modifier.focusEmphasis(focused: Boolean, baseCorner: Dp = 12.dp, focusedCorn
         .padding(if (focused) 3.dp else 0.dp)
         .clip(shape)
 }
+
+/**
+ * Press feedback: squish quickly while pressed, then spring back with a little overshoot
+ * (M3 fast spatial spring). Triggered by a pointer press via [interaction], or — for controller /
+ * keyboard confirm — by bumping [pulse] while [active] (the focused item).
+ */
+@Composable
+fun Modifier.pressBounce(pulse: Int = 0, active: Boolean = true, interaction: InteractionSource? = null, depth: Float = 0.9f): Modifier {
+    val scale = remember { Animatable(1f) }
+    val release = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val pressed = interaction?.collectIsPressedAsState()?.value ?: false
+    LaunchedEffect(pressed) {
+        if (pressed) scale.animateTo(depth, spring(stiffness = Spring.StiffnessHigh))
+        else if (scale.value != 1f) scale.animateTo(1f, release)
+    }
+    LaunchedEffect(pulse) {
+        if (pulse > 0 && active) {
+            scale.animateTo(depth, tween(70))
+            scale.animateTo(1f, release)
+        }
+    }
+    return graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+}
+
+/** Bumped by a screen when the controller/keyboard confirms; the focused control bounces. */
+val LocalPressPulse = compositionLocalOf { 0 }
+
+/** How long to let a press bounce play before an action that leaves the screen. */
+const val PRESS_DELAY_MS = 150L
 
 // ---------------- Controller glyphs ----------------
 

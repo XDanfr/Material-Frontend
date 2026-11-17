@@ -1,5 +1,13 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package app.materialfrontend.ui.emulation
 
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.CompositionLocalProvider
+import app.materialfrontend.ui.components.PRESS_DELAY_MS
+import app.materialfrontend.ui.components.LocalPressPulse
+import app.materialfrontend.ui.components.pressBounce
 import androidx.compose.foundation.layout.Spacer
 import app.materialfrontend.ui.theme.reactive
 import androidx.compose.animation.core.animateFloatAsState
@@ -171,9 +179,11 @@ fun EmulationScreen(session: EmulationSession) {
     val latestActions by rememberUpdatedState(actions)
     val latestOptions by rememberUpdatedState(options)
     val latestDiscs by rememberUpdatedState(discs)
+    var pressPulse by remember { mutableIntStateOf(0) }
     LaunchedEffect(session) {
         app.controllers.events.collect { e ->
             if (!menuOpen) { if (e.nav == Nav.GUIDE) setMenu(true); return@collect }
+            if (e.nav == Nav.CONFIRM) { pressPulse++; if (!optionsOpen) delay(PRESS_DELAY_MS) }
             if (optionsOpen) {
                 val o = latestOptions.getOrNull(optFocus)
                 when (e.nav) {
@@ -209,6 +219,7 @@ fun EmulationScreen(session: EmulationSession) {
         }
     }
 
+    CompositionLocalProvider(LocalPressPulse provides pressPulse) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         val img = frame
         if (img != null) GameCanvas(img, session.aspectRatio, settings.videoFilter, settings.integerScale)
@@ -218,7 +229,7 @@ fun EmulationScreen(session: EmulationSession) {
                 Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("Couldn't start the game", style = MaterialTheme.typography.headlineSmallEmphasized, color = MaterialTheme.colorScheme.onErrorContainer)
                     Text(error ?: "Unknown error", color = MaterialTheme.colorScheme.onErrorContainer)
-                    Button(onClick = { app.stopSession() }) { Text("Back to library") }
+                    Button(shapes = ButtonDefaults.shapes(), onClick = { app.stopSession() }) { Text("Back to library") }
                 }
             }
         }
@@ -255,6 +266,7 @@ fun EmulationScreen(session: EmulationSession) {
                 )
             }
         }
+    }
     }
 }
 
@@ -321,7 +333,7 @@ private fun CoreOptionsPanel(options: List<CoreOption>, values: Map<String, Stri
                         if (showCategory) Text(o.category!!, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 4.dp))
                         val bg by animateFloatAsState(if (f) 1f else 0f, MaterialTheme.motionScheme.fastEffectsSpec())
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = bg))
+                        Row(Modifier.fillMaxWidth().pressBounce(LocalPressPulse.current, f, depth = 0.96f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = bg))
                             .clickable { onPick(i, o) }.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(o.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.reactive(f) { copy(wght = 620f, rond = 80f) }, maxLines = 2)
                             val v = values[o.key]
