@@ -1,5 +1,8 @@
 package app.materialfrontend.ui.bigscreen
 
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.animateContentSize
 import app.materialfrontend.emulators.launchLabel
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -461,7 +464,7 @@ private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack:
                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         BigButton("Play", focus == 0, primary = true) { onAction(0); onPlay() }
-                        BigButton(if (g.favorite) "Favourited" else "Favourite", focus == 1) { onAction(1); app.toggleFavorite(g.id) }
+                        BigButton("Favourite", focus == 1, suffix = "d", showSuffix = g.favorite) { onAction(1); app.toggleFavorite(g.id) }
                         BigButton("Launch with…", focus == 2) { onAction(2); onLaunchWith() }
                     }
                     Text(launchLabel(target), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
@@ -474,7 +477,7 @@ private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack:
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BigButton(label: String, focused: Boolean, primary: Boolean = false, onClick: () -> Unit) {
+private fun BigButton(label: String, focused: Boolean, primary: Boolean = false, suffix: String? = null, showSuffix: Boolean = false, onClick: () -> Unit) {
     val scale by animateFloatAsState(if (focused) 1.08f else 1f, MaterialTheme.motionScheme.fastSpatialSpec())
     val corner by androidx.compose.animation.core.animateDpAsState(if (focused) 20.dp else 32.dp, MaterialTheme.motionScheme.fastSpatialSpec())
     val bg = when { focused && primary -> MaterialTheme.colorScheme.primary; focused -> MaterialTheme.colorScheme.secondaryContainer; else -> MaterialTheme.colorScheme.surfaceContainerHigh }
@@ -482,8 +485,18 @@ private fun BigButton(label: String, focused: Boolean, primary: Boolean = false,
     val interaction = remember { MutableInteractionSource() }
     Surface(onClick = onClick, shape = RoundedCornerShape(corner), color = bg, interactionSource = interaction,
         modifier = Modifier.height(64.dp).graphicsLayer { scaleX = scale; scaleY = scale }.pressBounce(LocalPressPulse.current, focused, interaction)) {
-        Box(Modifier.padding(horizontal = 32.dp), contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.titleLarge.reactive(focused) { copy(wght = 760f, wdth = 112f, rond = 100f) }, color = fg)
+        val style = MaterialTheme.typography.titleLarge.reactive(focused) { copy(wght = 760f, wdth = 112f, rond = 100f) }
+        // The button widens with a spring while an optional suffix (e.g. the "d" of "Favourited") slides in.
+        Row(Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()).padding(horizontal = 32.dp).fillMaxHeight(),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = style, color = fg)
+            if (suffix != null) AnimatedVisibility(showSuffix,
+                enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start) +
+                    slideInHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) { -it } + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec(), shrinkTowards = Alignment.Start) +
+                    slideOutHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) { -it } + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec())) {
+                Text(suffix, style = style, color = fg)
+            }
         }
     }
 }
