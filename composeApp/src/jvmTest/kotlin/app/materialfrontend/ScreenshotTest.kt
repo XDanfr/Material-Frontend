@@ -34,7 +34,7 @@ class ScreenshotTest {
         }
         fun shot(name: String, w: Int = 1440, h: Int = 900, setup: () -> Unit) {
             setup()
-            val scene = ImageComposeScene(w, h, Density(1f)) { App(app) }
+            val scene = ImageComposeScene(w, h, Density(1f)) { App(app, showSplash = false) }
             var t = 0L
             repeat(90) { scene.render(t); t += 16_000_000L }
             Thread.sleep(400)
@@ -48,5 +48,16 @@ class ScreenshotTest {
         shot("xmb") { app.mode.value = UiMode.XMB }
         app.updateSettings { it.copy(onboardingComplete = false) }
         shot("onboarding") {}
+
+        // Launch animation at key moments of its timeline (frame-clock driven).
+        app.updateSettings { it.copy(onboardingComplete = true) }
+        val splash = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = true) }
+        var t = 0L
+        for ((name, ms) in listOf("splash-1-circle" to 200L, "splash-2-cookie" to 640L, "splash-3-flower" to 1150L,
+                                  "splash-4-wave" to 1650L, "splash-5-final" to 2500L)) {
+            while (t < ms * 1_000_000L) { splash.render(t); t += 16_000_000L }
+            File(out, "$name.png").writeBytes(splash.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        }
+        splash.close()
     }
 }
