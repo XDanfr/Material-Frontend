@@ -2,6 +2,7 @@ package app.materialfrontend
 
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
+import app.materialfrontend.input.Nav
 import app.materialfrontend.model.Game
 import app.materialfrontend.model.GameKind
 import app.materialfrontend.model.GameMeta
@@ -48,6 +49,17 @@ class ScreenshotTest {
         shot("xmb") { app.mode.value = UiMode.XMB }
         app.updateSettings { it.copy(onboardingComplete = false) }
         shot("onboarding") {}
+
+        // Press feedback: confirm on Big Screen bounces the focused card, then (after the bounce) opens the game page.
+        app.updateSettings { it.copy(onboardingComplete = true) }
+        app.mode.value = UiMode.BIGSCREEN
+        val press = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        var pt = 0L
+        repeat(60) { press.render(pt); pt += 16_000_000L }
+        app.controllers.onKey(Nav.CONFIRM, null, true)
+        repeat(50) { press.render(pt); pt += 16_000_000L; Thread.sleep(8) }
+        File(out, "press-details.png").writeBytes(press.render(pt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        press.close()
 
         // Launch animation at key moments of its timeline (frame-clock driven).
         app.updateSettings { it.copy(onboardingComplete = true) }
