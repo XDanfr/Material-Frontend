@@ -4,6 +4,8 @@ import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.unit.Density
 import cc.xdan.frontend.input.Nav
 import cc.xdan.frontend.ui.emulation.LaunchingOverlay
+import cc.xdan.frontend.ui.settings.SettingsScreen
+import cc.xdan.frontend.ui.settings.SettingsSection
 import cc.xdan.frontend.ui.theme.LocalApp
 import cc.xdan.frontend.ui.theme.LocalArtworkSeed
 import cc.xdan.frontend.ui.theme.MaterialFrontendTheme
@@ -55,7 +57,7 @@ class ScreenshotTest {
         shot("list") { app.mode.value = UiMode.LIST }
         shot("bigscreen") { app.mode.value = UiMode.BIGSCREEN }
         shot("xmb") { app.mode.value = UiMode.XMB }
-        // Setup: one question per screen, windowed and fullscreen (controller / F11).
+        // Setup: one question per screen, windowed and fullscreen (controller / F11 / ⌃⌘F).
         app.updateSettings { it.copy(onboardingComplete = false, onboardingStep = null, usage = null) }
         shot("onboarding-1-welcome") {}
         shot("onboarding-2-usage") { app.updateSettings { it.copy(onboardingStep = "USAGE") } }
@@ -84,6 +86,17 @@ class ScreenshotTest {
         repeat(50) { press.render(pt); pt += 16_000_000L; Thread.sleep(8) }
         File(out, "press-details.png").writeBytes(press.render(pt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         press.close()
+
+        // Settings → About (credit, link, reset options).
+        val about = ImageComposeScene(1440, 1100, Density(1f)) {
+            CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
+                MaterialFrontendTheme(app.settings.value, null) { SettingsScreen(onBack = {}, initial = SettingsSection.ABOUT) }
+            }
+        }
+        var at = 0L
+        repeat(30) { about.render(at); at += 16_000_000L }
+        File(out, "settings-about.png").writeBytes(about.render(at).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        about.close()
 
         // Launching screen (Big Screen / XMB) for a game launching through an emulator.
         val launching = ImageComposeScene(1440, 900, Density(1f)) {
