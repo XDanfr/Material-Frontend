@@ -177,6 +177,38 @@ class AppController {
 
     fun removeGames(ids: Set<String>) = library.remove(ids)
 
+    // ---------- Reset (Settings → About). Game files, saves, states, cores and BIOS are never touched. ----------
+
+    /** Reopen setup, keeping every setting and the library. */
+    fun runSetupAgain() {
+        updateSettings { it.copy(onboardingComplete = false, onboardingStep = null) }
+        mode.value = UiMode.LIST
+    }
+
+    /** Back to default settings (setup reopens). The library is kept. */
+    fun resetSettings() {
+        settings.update { Settings() }
+        controllers.nintendoConfirm = false
+        mode.value = UiMode.LIST; fullscreen.value = false
+    }
+
+    /** Empty the game list (files stay on disk; a rescan rebuilds it). */
+    fun clearLibrary() {
+        scraper.cancel()
+        library.update { emptyList() }
+        toast("Library cleared — rescan to bring your games back")
+    }
+
+    /** Settings, library, downloaded artwork, caches and saved core options. */
+    fun resetEverything() {
+        scraper.cancel()
+        library.update { emptyList() }
+        listOf(AppPaths.media, AppPaths.cache, File(AppPaths.root, "core-options")).forEach { dir ->
+            dir.listFiles()?.forEach { it.deleteRecursively() }
+        }
+        resetSettings()
+    }
+
     // ---------- Emulators ----------
 
     suspend fun detectEmulators(onProgress: (String) -> Unit = {}): List<DetectedEmulator> =

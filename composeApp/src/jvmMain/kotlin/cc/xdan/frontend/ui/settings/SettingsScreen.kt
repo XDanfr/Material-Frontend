@@ -2,6 +2,12 @@
 
 package cc.xdan.frontend.ui.settings
 
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItem
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material3.ButtonDefaults
@@ -86,7 +92,9 @@ enum class SettingsSection(val label: String, val icon: ImageVector) {
 @Composable
 fun SettingsScreen(onBack: () -> Unit, initial: SettingsSection = SettingsSection.GENERAL) {
     var section by remember { mutableStateOf(initial) }
-    Row(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    // Own surface so text colours are right wherever Settings is shown.
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    Row(Modifier.fillMaxSize()) {
         Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.width(260.dp).fillMaxHeight()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -118,6 +126,7 @@ fun SettingsScreen(onBack: () -> Unit, initial: SettingsSection = SettingsSectio
                 }
             }
         }
+    }
     }
 }
 
@@ -195,5 +204,50 @@ fun AboutPanel() {
         Text("Saves: ${AppPaths.saves} · States: ${AppPaths.states}", style = MaterialTheme.typography.bodyMedium)
         Text("Runtime: Java ${System.getProperty("java.version")} · ${System.getProperty("os.name")} ${System.getProperty("os.arch")}",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ResetSection()
+    }
+}
+
+private class ResetAction(val title: String, val description: String, val confirm: String?, val destructive: Boolean, val run: () -> Unit)
+
+/** Reset options, gentlest first. Destructive ones ask first; none touch game files, saves, states, cores or BIOS. */
+@Composable
+private fun ResetSection() {
+    val app = LocalApp.current
+    var pending by remember { mutableStateOf<ResetAction?>(null) }
+    val actions = listOf(
+        ResetAction("Run setup again", "Walk through setup again. Everything else stays as it is.", null, false) { app.runSetupAgain() },
+        ResetAction("Reset settings", "Restore default settings and reopen setup. Your library is kept.",
+            "All settings — folders, emulators, keys, appearance — go back to their defaults.", true) { app.resetSettings() },
+        ResetAction("Clear library", "Remove every game from the list. Files on disk aren't touched; a rescan brings them back.",
+            "Favourites, play time and edited titles are stored in the library and will be lost.", true) { app.clearLibrary() },
+        ResetAction("Reset everything", "Settings, library, downloaded artwork and core options.",
+            "This also deletes downloaded artwork and saved core options. Saves, save states, installed cores, BIOS files and your games are kept.", true) { app.resetEverything() },
+    )
+    SectionTitle("Reset")
+    actions.forEach { a ->
+        ListItem(
+            headlineContent = { Text(a.title) },
+            supportingContent = { Text(a.description) },
+            trailingContent = {
+                if (a.destructive) OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { pending = a },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(if (a.title == "Reset everything") "Reset all" else a.title.substringBefore(' ')) }
+                else FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = { a.run() }) { Text("Start") }
+            },
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+            modifier = Modifier.padding(vertical = 2.dp),
+        )
+    }
+    pending?.let { a ->
+        AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { Text("${a.title}?") },
+            text = { Text(a.confirm ?: a.description) },
+            confirmButton = {
+                Button(shapes = ButtonDefaults.shapes(), onClick = { pending = null; a.run() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)) { Text(a.title) }
+            },
+            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { pending = null }) { Text("Cancel") } },
+        )
     }
 }
