@@ -138,6 +138,7 @@ fun GeneralPanel() {
         }
         SwitchRow("Colour from artwork", "Tint the interface from the focused game's box art", settings.colorFromArtwork) { v -> app.updateSettings { it.copy(colorFromArtwork = v) } }
         SwitchRow("Reduce motion", "Use the standard (non-bouncy) motion scheme", settings.reduceMotion) { v -> app.updateSettings { it.copy(reduceMotion = v) } }
+        SwitchRow("Launch animation", "Play the logo animation when the app opens (skipped with reduced motion)", settings.launchAnimation) { v -> app.updateSettings { it.copy(launchAnimation = v) } }
         SectionTitle("Start-up")
         SingleChoiceSegmentedButtonRow {
             UiMode.entries.forEachIndexed { i, m ->

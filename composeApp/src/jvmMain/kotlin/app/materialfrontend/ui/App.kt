@@ -1,5 +1,8 @@
 package app.materialfrontend.ui
 
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.snap
+import app.materialfrontend.ui.brand.LaunchSplash
 import app.materialfrontend.ui.brand.BrandLoader
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -50,12 +53,14 @@ import app.materialfrontend.ui.xmb.XmbScreen
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun App(app: AppController) {
+fun App(app: AppController, showSplash: Boolean = true) {
     val settings by app.settings.state.collectAsState()
     val mode by app.mode.collectAsState()
     val session by app.session.collectAsState()
     val external by app.external.collectAsState()
     val seed = remember { mutableStateOf<Color?>(null) }
+    // Decided once at start-up so toggling the setting doesn't replay it.
+    var splash by remember { mutableStateOf(showSplash && settings.launchAnimation && !settings.reduceMotion) }
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { app.toasts.collect { snackbar.showSnackbar(it) } }
 
@@ -101,6 +106,12 @@ fun App(app: AppController) {
                         }
                     }
                     SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (mode == UiMode.LIST) 24.dp else 96.dp))
+
+                    // Launch animation over the (already composing) app; fades and lifts away when done.
+                    AnimatedVisibility(splash, enter = fadeIn(snap()),
+                        exit = fadeOut(MaterialTheme.motionScheme.slowEffectsSpec()) + scaleOut(MaterialTheme.motionScheme.slowSpatialSpec(), targetScale = 1.04f)) {
+                        LaunchSplash(onDone = { splash = false })
+                    }
                 }
             }
         }

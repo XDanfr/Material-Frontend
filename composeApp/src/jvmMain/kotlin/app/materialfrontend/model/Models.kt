@@ -139,4 +139,5 @@ data class Settings(
     val autoSaveState: Boolean = true,
     val minimizeOnExternalLaunch: Boolean = true,
     val reduceMotion: Boolean = false,
+    val launchAnimation: Boolean = true,
 )

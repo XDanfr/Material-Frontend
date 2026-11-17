@@ -170,6 +170,13 @@ object BrandIcons {
         MaterialShapes.Pill, MaterialShapes.Sunny, MaterialShapes.Cookie4Sided, MaterialShapes.Oval,
     ).map { shape -> cartridge.withLayer("core", place(shape, 256f, 236f, 132f), IconRole.TERTIARY) }
 
+    /** Launch animation: circle → 9-sided cookie → the flower (the real logo). */
+    val splash: List<BrandIcon> = listOf(
+        cartridge.withLayer("core", place(MaterialShapes.Circle, 256f, 236f, 96f), IconRole.TERTIARY),
+        cartridge.withLayer("core", place(MaterialShapes.Cookie9Sided, 256f, 236f, 124f), IconRole.TERTIARY),
+        cartridge,
+    )
+
     fun byName(name: String) = cycle.firstOrNull { it.name == name } ?: cartridge
 }
 
