@@ -111,6 +111,17 @@ class ScreenshotTest {
         File(out, "launching.png").writeBytes(launching.render(lt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         launching.close()
 
+        // Launch animation → setup hand-off: the logo should rise first, then "Welcome" + Continue appear.
+        app.updateSettings { it.copy(onboardingComplete = false, onboardingStep = null) }
+        val handoff = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = true) }
+        var ht = 0L
+        for ((name, ms) in listOf("handoff-1-logo" to 2700L, "handoff-2-rising" to 3150L, "handoff-3-risen" to 3700L, "handoff-4-button" to 4300L)) {
+            while (ht < ms * 1_000_000L) { handoff.render(ht); ht += 16_000_000L }
+            File(out, "$name.png").writeBytes(handoff.render(ht).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        }
+        handoff.close()
+        app.updateSettings { it.copy(onboardingComplete = true) }
+
         // Launch animation at key moments of its timeline (frame-clock driven).
         app.updateSettings { it.copy(onboardingComplete = true) }
         val splash = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = true) }
