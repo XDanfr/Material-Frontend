@@ -37,6 +37,12 @@ import java.io.File
 
 data class ExternalRun(val game: Game, val label: String, val process: Process, val startedAt: Long)
 
+/** How a launch can tell it's finished: core first frame, an external process, or an OS-opened link. */
+enum class LaunchKind { CORE, PROCESS, URI }
+
+/** Shown as the "Launching…" screen in Big Screen / XMB until the title is up. [via] = null for native titles. */
+data class LaunchingState(val game: Game, val via: String?, val kind: LaunchKind, val at: Long = System.currentTimeMillis())
+
 data class ScanState(val running: Boolean = false, val current: String = "", val found: Int = 0)
 
 /** Application-wide state & actions (one per process). */
@@ -59,6 +65,18 @@ class AppController {
 
     private val _external = MutableStateFlow<ExternalRun?>(null)
     val external: StateFlow<ExternalRun?> = _external.asStateFlow()
+
+    private val _launching = MutableStateFlow<LaunchingState?>(null)
+    val launching: StateFlow<LaunchingState?> = _launching.asStateFlow()
+
+    /** The launch screen is done (title is up or we stopped waiting): now minimise if wanted. */
+    fun launchSettled() {
+        val l = _launching.value ?: return
+        _launching.value = null
+        if (l.kind != LaunchKind.CORE && settings.value.minimizeOnExternalLaunch && (l.kind == LaunchKind.URI || _external.value != null)) {
+            minimizeRequests.tryEmit(true)
+        }
+    }
 
     private val _scan = MutableStateFlow(ScanState())
     val scan: StateFlow<ScanState> = _scan.asStateFlow()
@@ -145,7 +163,14 @@ class AppController {
     fun play(game: Game, launcherKey: String? = null) {
         if (_session.value != null || _external.value != null) { toast("A game is already running"); return }
         val s = settings.value
-        when (val t = Launchers.resolve(game, s, launcherKey)) {
+        // The full-screen launch screen is a controller-mode thing; the library view keeps its toasts.
+        val showLaunch = mode.value != UiMode.LIST
+        val t = Launchers.resolve(game, s, launcherKey)
+        if (showLaunch && t !is LaunchTarget.Unavailable) {
+            val via = if (game.kind == GameKind.PORT) null else t.label
+            _launching.value = LaunchingState(game, via, when (t) { is LaunchTarget.Core -> LaunchKind.CORE; is LaunchTarget.External -> LaunchKind.PROCESS; else -> LaunchKind.URI })
+        }
+        when (t) {
             is LaunchTarget.Core -> {
                 val session = EmulationSession(t.file, game.path, game.id, controllers, s.biosDir?.let(::File) ?: AppPaths.system, s.rewind)
                 controllers.gameMode = true
@@ -154,26 +179,27 @@ class AppController {
                 session.start()
                 markPlayed(game)
             }
-            is LaunchTarget.External -> launchExternal(game, t)
-            is LaunchTarget.Steam -> { Launchers.openSteam(t.appId); markPlayed(game); toast("Opening ${game.title} in Steam") }
-            is LaunchTarget.Uri -> { Launchers.openUri(t.uri); markPlayed(game); toast("Opening ${game.title} in ${t.label}") }
+            is LaunchTarget.External -> launchExternal(game, t, minimizeNow = !showLaunch)
+            is LaunchTarget.Steam -> { Launchers.openSteam(t.appId); markPlayed(game); if (!showLaunch) toast("Opening ${game.title} in Steam") }
+            is LaunchTarget.Uri -> { Launchers.openUri(t.uri); markPlayed(game); if (!showLaunch) toast("Opening ${game.title} in ${t.label}") }
             is LaunchTarget.Unavailable -> toast(t.reason)
         }
     }
 
-    private fun launchExternal(game: Game, t: LaunchTarget.External) {
+    private fun launchExternal(game: Game, t: LaunchTarget.External, minimizeNow: Boolean) {
         val proc = runCatching {
             ProcessBuilder(t.command).apply { t.workingDir?.let { directory(it) }; redirectErrorStream(true); redirectOutput(ProcessBuilder.Redirect.DISCARD) }.start()
-        }.getOrElse { toast("Couldn't start ${t.label}: ${it.message}"); return }
+        }.getOrElse { _launching.value = null; toast("Couldn't start ${t.label}: ${it.message}"); return }
         val run = ExternalRun(game, t.label, proc, System.currentTimeMillis())
         _external.value = run
         markPlayed(game)
-        if (settings.value.minimizeOnExternalLaunch) minimizeRequests.tryEmit(true)
+        if (minimizeNow && settings.value.minimizeOnExternalLaunch) minimizeRequests.tryEmit(true)
         scope.launch(Dispatchers.IO) {
             val code = proc.waitFor()
             val seconds = (System.currentTimeMillis() - run.startedAt) / 1000
             library.updateGame(game.id) { it.copy(playTimeSeconds = it.playTimeSeconds + seconds) }
             _external.value = null
+            if (_launching.value?.game?.id == game.id) _launching.value = null
             minimizeRequests.tryEmit(false)
             if (code != 0 && seconds < 5) toast("${t.label} exited immediately (code $code) — check its path and arguments")
         }

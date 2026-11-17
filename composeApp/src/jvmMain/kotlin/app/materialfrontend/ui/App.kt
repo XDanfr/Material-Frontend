@@ -2,6 +2,8 @@
 
 package app.materialfrontend.ui
 
+import app.materialfrontend.ui.emulation.LaunchingOverlay
+import app.materialfrontend.LaunchingState
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.setValue
@@ -108,6 +110,14 @@ fun App(app: AppController, showSplash: Boolean = true) {
                                 }
                             }
                         }
+                    }
+                    // Big Screen / XMB launch screen until the title is up (keeps the last state for the fade-out).
+                    val launching by app.launching.collectAsState()
+                    val lastLaunch = remember { mutableStateOf<LaunchingState?>(null) }
+                    launching?.let { lastLaunch.value = it }
+                    AnimatedVisibility(launching != null, enter = fadeIn(MaterialTheme.motionScheme.slowEffectsSpec()),
+                        exit = fadeOut(MaterialTheme.motionScheme.slowEffectsSpec())) {
+                        lastLaunch.value?.let { LaunchingOverlay(it) }
                     }
                     SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (mode == UiMode.LIST) 24.dp else 96.dp))
 
