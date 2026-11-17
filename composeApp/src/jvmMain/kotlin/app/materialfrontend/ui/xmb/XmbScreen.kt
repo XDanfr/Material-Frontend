@@ -1,5 +1,11 @@
 package app.materialfrontend.ui.xmb
 
+import app.materialfrontend.ui.components.platformIcon
+import androidx.compose.material.icons.outlined.ColorLens
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Tv
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.foundation.layout.height
 import app.materialfrontend.ui.brand.Wordmark
 import app.materialfrontend.ui.brand.BrandArtwork
@@ -76,7 +82,7 @@ import kotlin.math.sin
 
 private sealed interface XmbItem { val title: String; val subtitle: String }
 private data class GameItem(val game: Game) : XmbItem { override val title = game.title; override val subtitle = Platforms.get(game.platformId).shortName + (game.meta.releaseYear?.let { " · $it" } ?: "") }
-private data class ActionItem(override val title: String, override val subtitle: String, val action: () -> Unit) : XmbItem
+private data class ActionItem(override val title: String, override val subtitle: String, val icon: ImageVector, val action: () -> Unit) : XmbItem
 
 private data class Category(val title: String, val icon: ImageVector, val items: List<XmbItem>)
 
@@ -93,17 +99,17 @@ fun XmbScreen() {
         val visible = games.filter { !it.hidden }
         buildList {
             add(Category("Settings", Icons.Outlined.Settings, listOf(
-                ActionItem("Library view", "Mouse & keyboard library") { app.mode.value = UiMode.LIST; app.fullscreen.value = false },
-                ActionItem("Big Screen", "Controller shelves") { app.mode.value = UiMode.BIGSCREEN },
-                ActionItem("Rescan library", "Look for new games") { app.rescan() },
-                ActionItem("Theme", settings.themeMode.name.lowercase()) { app.updateSettings { it.copy(themeMode = ThemeMode.entries[(it.themeMode.ordinal + 1) % ThemeMode.entries.size]) } },
-                ActionItem("Colour from artwork", if (settings.colorFromArtwork) "On" else "Off") { app.updateSettings { it.copy(colorFromArtwork = !it.colorFromArtwork) } },
+                ActionItem("Library view", "Mouse & keyboard library", Icons.Outlined.GridView) { app.mode.value = UiMode.LIST; app.fullscreen.value = false },
+                ActionItem("Big Screen", "Controller shelves", Icons.Outlined.Tv) { app.mode.value = UiMode.BIGSCREEN },
+                ActionItem("Rescan library", "Look for new games", Icons.Outlined.Refresh) { app.rescan() },
+                ActionItem("Theme", settings.themeMode.name.lowercase(), Icons.Outlined.Palette) { app.updateSettings { it.copy(themeMode = ThemeMode.entries[(it.themeMode.ordinal + 1) % ThemeMode.entries.size]) } },
+                ActionItem("Colour from artwork", if (settings.colorFromArtwork) "On" else "Off", Icons.Outlined.ColorLens) { app.updateSettings { it.copy(colorFromArtwork = !it.colorFromArtwork) } },
             )))
             visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed }.take(20).takeIf { it.isNotEmpty() }?.let { add(Category("Recent", Icons.Outlined.History, it.map(::GameItem))) }
             visible.filter { it.favorite }.takeIf { it.isNotEmpty() }?.let { add(Category("Favourites", Icons.Outlined.Favorite, it.map(::GameItem))) }
             visible.filter { it.kind == GameKind.PORT }.takeIf { it.isNotEmpty() }?.let { add(Category("Ports", Icons.Outlined.Build, it.map(::GameItem))) }
             visible.groupBy { it.platformId }.toList().sortedBy { (pid, _) -> Platforms.all.indexOfFirst { it.id == pid } }.forEach { (pid, list) ->
-                add(Category(Platforms.get(pid).shortName, Icons.Outlined.SportsEsports, list.sortedBy { it.sortKey }.map(::GameItem)))
+                add(Category(Platforms.get(pid).shortName, platformIcon(pid), list.sortedBy { it.sortKey }.map(::GameItem)))
             }
         }
     }
@@ -166,7 +172,12 @@ fun XmbScreen() {
                     Row(Modifier.offset(anchorX - 48.dp, barY + y.dp).alpha(if (sel) 1f else 0.75f - abs(rel) * 0.06f),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         if (item is GameItem) CoverArt(item.game, Modifier.size(if (sel) 96.dp else 56.dp, if (sel) 136.dp else 76.dp).clip(RoundedCornerShape(if (sel) 20.dp else 12.dp)), maxDim = 300)
-                        else Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.secondaryContainer))
+                        else if (item is ActionItem) Box(Modifier.size(if (sel) 72.dp else 56.dp).clip(RoundedCornerShape(if (sel) 20.dp else 16.dp))
+                            .background(if (sel) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh),
+                            contentAlignment = Alignment.Center) {
+                            Icon(item.icon, null, Modifier.size(if (sel) 32.dp else 26.dp),
+                                tint = if (sel) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                         Column {
                             Text(item.title, style = if (sel) MaterialTheme.typography.headlineSmallEmphasized else MaterialTheme.typography.titleMedium.flex { copy(wdth = 84f) }, maxLines = 1)
                             if (sel) Text(item.subtitle + ((item as? GameItem)?.game?.playTimeSeconds?.takeIf { it > 0 }?.let { " · " + formatPlayTime(it) } ?: ""),

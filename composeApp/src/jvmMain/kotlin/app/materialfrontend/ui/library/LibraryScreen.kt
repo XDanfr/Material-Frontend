@@ -1,5 +1,6 @@
 package app.materialfrontend.ui.library
 
+import app.materialfrontend.ui.components.platformIcon
 import app.materialfrontend.ui.brand.Wordmark
 import app.materialfrontend.ui.brand.BrandArtwork
 import app.materialfrontend.ui.theme.FlexRecipes
@@ -194,7 +195,7 @@ fun LibraryScreen() {
                         Text("Systems", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp))
                         LibraryQuery.platformsIn(games).forEach { (pid, count) ->
-                            SidebarItem(Collection.OfPlatform(pid), Icons.Outlined.SportsEsports, count, collection) { collection = it }
+                            SidebarItem(Collection.OfPlatform(pid), platformIcon(pid), count, collection) { collection = it }
                         }
                         if (games.any { it.hidden }) SidebarItem(Collection.Hidden, Icons.Outlined.VisibilityOff, games.count { it.hidden }, collection) { collection = it }
                     }

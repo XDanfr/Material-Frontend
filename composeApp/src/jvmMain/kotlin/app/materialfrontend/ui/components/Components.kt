@@ -1,5 +1,12 @@
 package app.materialfrontend.ui.components
 
+import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.VideogameAsset
+import androidx.compose.material.icons.outlined.Gamepad
+import androidx.compose.material.icons.outlined.Computer
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.vector.ImageVector
 import app.materialfrontend.ui.theme.flex
 import app.materialfrontend.ui.theme.Axes
 import androidx.compose.animation.animateColorAsState
@@ -181,6 +188,15 @@ fun HintBar(hints: List<Pair<Pad, String>>, family: ControllerFamily, modifier: 
             }
         }
     }
+}
+
+/** Icon for a system/collection: storefronts, computers, handhelds and home consoles read differently. */
+fun platformIcon(platformId: String): ImageVector = when (platformId) {
+    "steam", "epic", "ea", "xbox-pc", "gog", "ubisoft", "amazon" -> Icons.Outlined.Storefront
+    "pc", "lutris", "dos", "msx" -> Icons.Outlined.Computer
+    "gb", "gbc", "gba", "nds", "3ds", "psp", "psvita", "ngp", "wonderswan", "lynx", "gamegear", "switch", "switch2" -> Icons.Outlined.Gamepad
+    "arcade", "neogeo" -> Icons.Outlined.VideogameAsset
+    else -> Icons.Outlined.SportsEsports
 }
 
 fun formatPlayTime(seconds: Long): String = when {
