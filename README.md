@@ -1,5 +1,7 @@
 # Material Frontend (WIP)
 
+By [XDan](https://xdan.cc).
+
 A Material 3 Expressive emulation frontend for Windows, macOS and Linux, built with Compose Multiplatform.
 
 - **Library view:** a Steam-library style grid or table with sorting, filtering, collections, multi-select and Ctrl+K quick launch.
@@ -87,7 +89,7 @@ In game, the keyboard maps to the RetroPad as follows: arrows = D-pad, Z/X/A/S =
 ## Layout
 
 ```
-composeApp/src/jvmMain/kotlin/app/materialfrontend/
+composeApp/src/jvmMain/kotlin/cc/xdan/frontend/
   model/        Game, Settings, Platform catalogue (40+ systems)
   data/         JSON stores, ROM scanner, hashing, Steam (VDF), port guessing
   emulators/    Emulator catalogue + detector, cores + installer, BIOS check, launcher

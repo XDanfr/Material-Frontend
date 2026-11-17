@@ -54,7 +54,7 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "app.materialfrontend.MainKt"
+        mainClass = "cc.xdan.frontend.MainKt"
         // Bundle the same JDK the code is compiled for (not whatever JVM runs Gradle).
         javaHome = javaToolchains.launcherFor {
             languageVersion.set(JavaLanguageVersion.of(libs.versions.jvmToolchain.get().toInt()))
@@ -66,10 +66,11 @@ compose.desktop {
             packageName = "Material Frontend"
             packageVersion = "1.0.0" // jpackage needs major >= 1; the app itself reports 0.1 (WIP)
             description = "Material 3 Expressive emulation frontend"
-            vendor = "Material Frontend"
+            vendor = "XDan"
+            copyright = "© 2026 XDan"
             modules("java.instrument", "java.management", "java.naming", "java.net.http", "jdk.unsupported", "jdk.crypto.ec", "jdk.zipfs")
             macOS {
-                bundleID = "app.materialfrontend"
+                bundleID = "cc.xdan.frontend"
                 // Fallback .icns; the Liquid Glass icon (Assets.car) is added after jpackage below.
                 iconFile.set(rootProject.file("packaging/macos/AppIcon.icns"))
                 infoPlist { extraKeysRawXml = "<key>CFBundleIconName</key><string>AppIcon</string>" }
