@@ -14,6 +14,7 @@ import cc.xdan.frontend.model.Game
 import cc.xdan.frontend.model.GameKind
 import cc.xdan.frontend.model.GameMeta
 import cc.xdan.frontend.model.UiMode
+import cc.xdan.frontend.model.Usage
 import cc.xdan.frontend.ui.App
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
@@ -54,8 +55,24 @@ class ScreenshotTest {
         shot("list") { app.mode.value = UiMode.LIST }
         shot("bigscreen") { app.mode.value = UiMode.BIGSCREEN }
         shot("xmb") { app.mode.value = UiMode.XMB }
-        app.updateSettings { it.copy(onboardingComplete = false) }
-        shot("onboarding") {}
+        // Setup: one question per screen, windowed and fullscreen (controller / F11).
+        app.updateSettings { it.copy(onboardingComplete = false, onboardingStep = null, usage = null) }
+        shot("onboarding-1-welcome") {}
+        shot("onboarding-2-usage") { app.updateSettings { it.copy(onboardingStep = "USAGE") } }
+        shot("onboarding-3-controls-big") { app.fullscreen.value = true; app.updateSettings { it.copy(onboardingStep = "CONTROLS") } }
+        shot("onboarding-4-done-big") { app.updateSettings { it.copy(onboardingStep = "DONE", usage = Usage.BOTH) } }
+        app.fullscreen.value = false
+
+        // A controller can answer: Right moves to "Emulation", A chooses it.
+        app.updateSettings { it.copy(onboardingStep = "USAGE", usage = null) }
+        val nav = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        var nt = 0L
+        fun pump(n: Int) = repeat(n) { nav.render(nt); nt += 16_000_000L; Thread.sleep(4) }
+        pump(30)
+        app.controllers.onKey(Nav.RIGHT, null, true); pump(10)
+        app.controllers.onKey(Nav.CONFIRM, null, true); pump(30)
+        nav.close()
+        kotlin.test.assertEquals(Usage.EMULATION, app.settings.value.usage, "controller navigation should pick Emulation")
 
         // Press feedback: confirm on Big Screen bounces the focused card, then (after the bounce) opens the game page.
         app.updateSettings { it.copy(onboardingComplete = true) }
