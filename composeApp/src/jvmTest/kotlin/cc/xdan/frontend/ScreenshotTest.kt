@@ -61,6 +61,9 @@ class ScreenshotTest {
         app.updateSettings { it.copy(onboardingComplete = false, onboardingStep = null, usage = null) }
         shot("onboarding-1-welcome") {}
         shot("onboarding-2-usage") { app.updateSettings { it.copy(onboardingStep = "USAGE") } }
+        shot("onboarding-2b-look") { app.updateSettings { it.copy(onboardingStep = "LOOK") } }
+        shot("onboarding-2c-pc-libraries") { app.updateSettings { it.copy(onboardingStep = "PC_LIBRARIES", usage = Usage.BOTH) } }
+        shot("onboarding-2d-usage-big") { app.fullscreen.value = true; app.updateSettings { it.copy(onboardingStep = "USAGE", usage = Usage.EMULATION) } }
         shot("onboarding-3-controls-big") { app.fullscreen.value = true; app.updateSettings { it.copy(onboardingStep = "CONTROLS") } }
         shot("onboarding-4-done-big") { app.updateSettings { it.copy(onboardingStep = "DONE", usage = Usage.BOTH) } }
         app.fullscreen.value = false

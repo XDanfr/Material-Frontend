@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,5 +44,17 @@ class BrandRenderTest {
         }
         File(out, "brand-icons.png").writeBytes(scene.render().encodeToData(EncodedImageFormat.PNG)!!.bytes)
         scene.close()
+
+        // Same set in a dark scheme (roles flip; the icons must still read correctly).
+        val dark = ImageComposeScene(cell * icons.size, cell, Density(1f)) {
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                val cs = MaterialTheme.colorScheme
+                Row(Modifier.background(cs.surface)) {
+                    icons.forEach { icon -> Canvas(Modifier.size(cell.dp)) { drawTransition(IconTransition(icon, icon), 1f, cs, spinKeys = emptySet()) } }
+                }
+            }
+        }
+        File(out, "brand-icons-dark.png").writeBytes(dark.render().encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        dark.close()
     }
 }
