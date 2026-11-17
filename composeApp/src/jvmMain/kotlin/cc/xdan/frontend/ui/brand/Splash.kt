@@ -103,6 +103,27 @@ fun animatedWordmark(elapsed: Long, size: TextUnit): AnnotatedString = buildAnno
     withStyle(span(WordmarkType.frontend, WordmarkType.FRONTEND_TRACKING, size)) { append(" Frontend") }
 }
 
+/** Two colours as in the wordmark: "Material" in primary, "Frontend" in on-surface. */
+private fun coloured(text: AnnotatedString, material: androidx.compose.ui.graphics.Color, frontend: androidx.compose.ui.graphics.Color) = buildAnnotatedString {
+    append(text)
+    addStyle(SpanStyle(color = material), 0, "Material".length)
+    addStyle(SpanStyle(color = frontend), "Material".length, text.length)
+}
+
+/** Lockup sizes shared by the launch animation and setup's welcome step (so the hand-off lines up). */
+val LOCKUP_ICON = 150.dp
+val LOCKUP_TEXT = 76.sp
+
+/** The finished logo: cartridge + live Google Sans Flex wordmark, laid out exactly like the end of the launch animation. */
+@Composable
+fun WordmarkLockup(modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        BrandMorph(BrandIcons.cartridge, Modifier.size(LOCKUP_ICON), description = "Material Frontend")
+        Text(coloured(animatedWordmark(Long.MAX_VALUE / 4, LOCKUP_TEXT), cs.primary, cs.onSurface), style = TextStyle(fontSize = LOCKUP_TEXT), maxLines = 1, softWrap = false)
+    }
+}
+
 /**
  * Launch animation: a shape morphs twice inside the cartridge, settles into the flower, then the
  * wordmark slides out and "Material" swells into its heavy, round form. Click / any key / any
@@ -129,7 +150,7 @@ fun LaunchSplash(onDone: () -> Unit, modifier: Modifier = Modifier) {
         else -> BrandIcons.splash[2]
     }
     val intro by animateFloatAsState(if (elapsed > 0) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 260f))
-    val size = 76.sp
+    val size = LOCKUP_TEXT
     val cs = MaterialTheme.colorScheme
 
     Box(
@@ -139,18 +160,12 @@ fun LaunchSplash(onDone: () -> Unit, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            BrandMorph(icon, Modifier.size(150.dp).graphicsLayer { scaleX = 0.8f + 0.2f * intro; scaleY = scaleX; alpha = intro.coerceIn(0f, 1f) },
+            BrandMorph(icon, Modifier.size(LOCKUP_ICON).graphicsLayer { scaleX = 0.8f + 0.2f * intro; scaleY = scaleX; alpha = intro.coerceIn(0f, 1f) },
                 spinKeys = setOf("core"), spinDegrees = 90f, spec = spring(dampingRatio = 0.62f, stiffness = 220f), description = "Material Frontend")
             AnimatedVisibility(elapsed >= T.TEXT_IN,
                 enter = expandHorizontally(spring(dampingRatio = 0.8f, stiffness = 300f), expandFrom = Alignment.Start) + fadeIn(spring(stiffness = 300f))) {
                 // Two colours as in the wordmark: "Material" in primary, "Frontend" in on-surface.
-                val text = animatedWordmark(elapsed, size)
-                val coloured = buildAnnotatedString {
-                    append(text)
-                    addStyle(SpanStyle(color = cs.primary), 0, "Material".length)
-                    addStyle(SpanStyle(color = cs.onSurface), "Material".length, text.length)
-                }
-                Text(coloured, style = TextStyle(fontSize = size), maxLines = 1, softWrap = false)
+                Text(coloured(animatedWordmark(elapsed, size), cs.primary, cs.onSurface), style = TextStyle(fontSize = size), maxLines = 1, softWrap = false)
             }
         }
     }

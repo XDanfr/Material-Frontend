@@ -64,6 +64,10 @@ data class Game(
 @Serializable
 enum class UiMode { LIST, BIGSCREEN, XMB }
 
+/** What the user said they'll use the app for (shapes setup and defaults). */
+@Serializable
+enum class Usage { GAMES, EMULATION, BOTH }
+
 @Serializable
 enum class ThemeMode { SYSTEM, LIGHT, DARK, AMOLED }
 
@@ -110,6 +114,9 @@ data class ScraperSettings(
 @Serializable
 data class Settings(
     val onboardingComplete: Boolean = false,
+    /** Setup step to resume at (step id), so progress survives restarts and layout changes. */
+    val onboardingStep: String? = null,
+    val usage: Usage? = null,
     val defaultMode: UiMode = UiMode.LIST,
     val bigScreenOnController: Boolean = true,
     val startFullscreen: Boolean = false,

@@ -122,8 +122,12 @@ fun App(app: AppController, showSplash: Boolean = true) {
                     SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (mode == UiMode.LIST) 24.dp else 96.dp))
 
                     // Launch animation over the (already composing) app; fades and lifts away when done.
+                    LaunchedEffect(splash) { app.splashActive.value = splash }
+                    // During setup the logo hands off to the welcome step (same position), so just fade; otherwise lift away.
+                    val handOff = !settings.onboardingComplete
                     AnimatedVisibility(splash, enter = fadeIn(snap()),
-                        exit = fadeOut(MaterialTheme.motionScheme.slowEffectsSpec()) + scaleOut(MaterialTheme.motionScheme.slowSpatialSpec(), targetScale = 1.04f)) {
+                        exit = if (handOff) fadeOut(MaterialTheme.motionScheme.fastEffectsSpec())
+                               else fadeOut(MaterialTheme.motionScheme.slowEffectsSpec()) + scaleOut(MaterialTheme.motionScheme.slowSpatialSpec(), targetScale = 1.04f)) {
                         LaunchSplash(onDone = { splash = false })
                     }
                 }

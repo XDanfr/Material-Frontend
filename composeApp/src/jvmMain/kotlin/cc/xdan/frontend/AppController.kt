@@ -1,5 +1,6 @@
 package cc.xdan.frontend
 
+import cc.xdan.frontend.emulators.CoreCatalog
 import cc.xdan.frontend.data.Gamelists
 import cc.xdan.frontend.data.LauncherSources
 import cc.xdan.frontend.data.AppPaths
@@ -43,6 +44,10 @@ enum class LaunchKind { CORE, PROCESS, URI }
 /** Shown as the "Launching…" screen in Big Screen / XMB until the title is up. [via] = null for native titles. */
 data class LaunchingState(val game: Game, val via: String?, val kind: LaunchKind, val at: Long = System.currentTimeMillis())
 
+data class CoreInstallProgress(val total: Int, val done: Int, val current: String?, val fraction: Float) {
+    val finished get() = done >= total
+}
+
 data class ScanState(val running: Boolean = false, val current: String = "", val found: Int = 0)
 
 /** Application-wide state & actions (one per process). */
@@ -75,6 +80,25 @@ class AppController {
         _launching.value = null
         if (l.kind != LaunchKind.CORE && settings.value.minimizeOnExternalLaunch && (l.kind == LaunchKind.URI || _external.value != null)) {
             minimizeRequests.tryEmit(true)
+        }
+    }
+
+    /** True while the launch animation is on screen (setup's welcome step waits for it). */
+    val splashActive = MutableStateFlow(false)
+
+    private val _coreInstall = MutableStateFlow<CoreInstallProgress?>(null)
+    val coreInstall: StateFlow<CoreInstallProgress?> = _coreInstall.asStateFlow()
+
+    /** Installs cores in the background (keeps going while the user moves on). */
+    fun installCores(ids: List<String>) {
+        if (ids.isEmpty() || _coreInstall.value?.finished == false) return
+        scope.launch(Dispatchers.IO) {
+            ids.forEachIndexed { i, id ->
+                _coreInstall.value = CoreInstallProgress(ids.size, i, CoreCatalog.get(id)?.name, 0f)
+                coreInstaller.install(id) { f -> _coreInstall.value = _coreInstall.value?.copy(fraction = f) }
+                    .onFailure { toast("${CoreCatalog.get(id)?.name}: ${it.message}") }
+            }
+            _coreInstall.value = CoreInstallProgress(ids.size, ids.size, null, 1f)
         }
     }
 
