@@ -593,6 +593,7 @@ private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack:
                         BigButton("More…", focus == 3) { onAction(3); onMore() }
                     }
                     Text(launchLabel(target), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
+                    cc.xdan.frontend.ui.components.AchievementsStrip(g, big = true)
                     g.meta.description?.let { Text(it, style = MaterialTheme.typography.bodyLarge, maxLines = 5, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 900.dp)) }
                 }
             }

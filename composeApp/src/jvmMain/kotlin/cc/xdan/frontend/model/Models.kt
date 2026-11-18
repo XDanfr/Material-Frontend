@@ -57,6 +57,8 @@ data class Game(
     val scraped: Boolean = false,
     /** User edited title — don't overwrite on rescan/scrape. */
     val titleLocked: Boolean = false,
+    /** RetroAchievements game id from the ROM hash (0 = not in RA's database; null = not looked up). */
+    val raGameId: Int? = null,
     /** False for owned-but-not-installed launcher games (shown greyed out with Install). */
     val installed: Boolean = true,
     /** Operating systems the game supports (Steam: windows/macos/linux), for installing. */
@@ -121,6 +123,9 @@ data class ScraperSettings(
     /** Steam Web API key: complete owned-games list (otherwise only games Steam lists locally). */
     val steamApiKey: String = "",
     val igdbClientId: String = "",
+    /** RetroAchievements username + Web API key (retroachievements.org → Settings → Keys). */
+    val raUser: String = "",
+    val raApiKey: String = "",
     val igdbClientSecret: String = "",
     val providerOrder: List<String> = listOf("steamgriddb", "igdb", "libretro"),
     val preferredRegion: String = "us",

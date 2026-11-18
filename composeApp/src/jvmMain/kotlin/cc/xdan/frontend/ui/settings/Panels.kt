@@ -351,6 +351,13 @@ fun ScraperPanel() {
         OutlinedTextField(s.steamApiKey, { v -> upd { it.copy(steamApiKey = v.trim()) } }, label = { Text("API key") }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
             supportingText = { Text("Optional: lists every Steam game you own, installed or not · steamcommunity.com/dev/apikey") })
+        SectionTitle("RetroAchievements")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(s.raUser, { v -> upd { it.copy(raUser = v.trim()) } }, label = { Text("Username") }, singleLine = true, modifier = Modifier.weight(1f))
+            OutlinedTextField(s.raApiKey, { v -> upd { it.copy(raApiKey = v.trim()) } }, label = { Text("Web API key") }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(), modifier = Modifier.weight(1f),
+                supportingText = { Text("retroachievements.org → Settings → Keys · shows your progress on game pages") })
+        }
         SectionTitle("IGDB (Twitch)")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(s.igdbClientId, { v -> upd { it.copy(igdbClientId = v.trim()) } }, label = { Text("Client ID") }, singleLine = true, modifier = Modifier.weight(1f))

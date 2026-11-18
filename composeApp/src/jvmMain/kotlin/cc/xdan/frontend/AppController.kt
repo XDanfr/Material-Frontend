@@ -323,6 +323,32 @@ class AppController {
 
     fun toggleFavorite(id: String) = library.updateGame(id) { it.copy(favorite = !it.favorite) }
     fun setHidden(ids: Set<String>, hidden: Boolean) = library.update { l -> l.map { if (it.id in ids) it.copy(hidden = hidden) else it } }
+    /** RetroAchievements progress per game id (loaded when a game page opens). */
+    private val _achievements = MutableStateFlow<Map<String, cc.xdan.frontend.data.RetroAchievements.Progress>>(emptyMap())
+    val achievements: StateFlow<Map<String, cc.xdan.frontend.data.RetroAchievements.Progress>> = _achievements.asStateFlow()
+    private val achievementsFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    fun raConfigured() = settings.value.scraper.let { it.raUser.isNotBlank() && it.raApiKey.isNotBlank() }
+
+    /** Hash → RA game id (cached on the game) → user progress. Quietly does nothing for unsupported games or without an account. */
+    fun loadAchievements(game: Game) {
+        val ra = cc.xdan.frontend.data.RetroAchievements
+        if (!raConfigured() || game.kind != GameKind.ROM || !ra.supports(game.platformId) || game.raGameId == 0) return
+        if ((achievementsFetchedAt[game.id] ?: 0L) > System.currentTimeMillis() - 5 * 60_000) return
+        achievementsFetchedAt[game.id] = System.currentTimeMillis()
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val id = game.raGameId ?: run {
+                val h = ra.hash(java.io.File(game.path), game.platformId) ?: return@launch
+                val found = ra.gameId(http, h) ?: return@launch
+                library.updateGame(game.id) { it.copy(raGameId = found) }
+                found
+            }
+            if (id == 0) return@launch
+            val s = settings.value.scraper
+            ra.progress(http, id, s.raUser, s.raApiKey)?.let { p -> _achievements.value = _achievements.value + (game.id to p) }
+        }
+    }
+
     fun rename(id: String, title: String) {
         val before = library.value.firstOrNull { it.id == id } ?: return
         library.updateGame(id) { it.copy(title = title, titleLocked = true) }

@@ -175,6 +175,7 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                     game.meta.genres.forEach { AssistChip(onClick = {}, label = { Text(it) }) }
                     game.meta.players?.let { AssistChip(onClick = {}, label = { Text("$it players") }) }
                 }
+                cc.xdan.frontend.ui.components.AchievementsStrip(game, big = false)
                 game.meta.description?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
