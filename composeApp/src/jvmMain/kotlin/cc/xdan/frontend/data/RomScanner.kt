@@ -143,8 +143,15 @@ object AddOns {
     // PS4 content packages: -A0100 is the shipped app version; anything higher is a patch.
     private val ps4Version = Regex("-A(\\d{4})-V\\d{4}", RegexOption.IGNORE_CASE)
 
+    // "[Base + Update + DLC]", "(Game+Upd)": a merged dump, which is the game itself.
+    private val bundle = Regex("[\\[(][^\\])]*(base|game|\\+)[^\\])]*[\\])]", RegexOption.IGNORE_CASE)
+
     fun isAddOn(fileName: String, platformId: String): Boolean {
+        if (bundle.containsMatchIn(fileName)) return false
         if (tag.containsMatchIn(fileName)) return true
+        // Switch 2 .nup packages can hold the game with its updates merged in, so its version
+        // and title ID aren't evidence of an add-on.
+        if (fileName.endsWith(".nup", ignoreCase = true)) return false
         when (platformId) {
             "switch", "switch2" -> {
                 // Title IDs: base games end in 000, updates in 800, DLC in anything else.
