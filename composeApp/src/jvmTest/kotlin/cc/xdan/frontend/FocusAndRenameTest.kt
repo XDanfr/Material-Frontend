@@ -2,6 +2,7 @@ package cc.xdan.frontend
 
 import cc.xdan.frontend.input.ControllerManager
 import cc.xdan.frontend.input.Pad
+import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -16,6 +17,17 @@ class FocusAndRenameTest {
         assertEquals(0, c.portButtons(0), "game gets no input while another app is in front")
         c.windowFocused = true
         assertTrue(c.portButtons(0) != 0)
+    }
+
+    @Test fun lowBatteryWarnsOnce() {
+        val c = ControllerManager()
+        c.attachForTest(7, 0, cc.xdan.frontend.input.ControllerInfo(7, "Pad", cc.xdan.frontend.input.ControllerFamily.PLAYSTATION, "DualSense", 0, 0, 80))
+        val got = ArrayList<Int?>()
+        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined).launch { c.lowBattery.collect { got += it.battery } }
+        c.updateBattery(7, 40); c.updateBattery(7, 14); c.updateBattery(7, 10); c.updateBattery(7, 30); c.updateBattery(7, 12)
+        job.cancel()
+        assertEquals(listOf<Int?>(14, 12), got, "warn at 15%, not again until charged past 25%")
+        assertEquals(12, c.controllers.value.single().battery)
     }
 
     @Test fun appFocusDrivesControllers() {
