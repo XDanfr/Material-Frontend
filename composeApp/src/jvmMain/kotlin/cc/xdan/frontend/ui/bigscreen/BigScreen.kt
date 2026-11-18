@@ -1,5 +1,7 @@
 package cc.xdan.frontend.ui.bigscreen
 
+import cc.xdan.frontend.ui.components.alignment
+import cc.xdan.frontend.ui.components.rememberLogoPin
 import cc.xdan.frontend.ui.components.rememberHeroArt
 import cc.xdan.frontend.ui.components.heroBlur
 import androidx.compose.material3.carousel.rememberCarouselState
@@ -547,9 +549,10 @@ private fun ShelfCard(g: Game, rowActive: Boolean, focused: Boolean, onClick: ()
             Image(hero?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, g.title,
                 Modifier.fillMaxSize().heroBlur(wideArt == null || wideNeedsBlur), contentScale = ContentScale.Crop)
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
-            Box(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
+            val pin = rememberLogoPin(g)
+            Box(Modifier.align(pin.alignment()).padding(20.dp)) {
                 Image(logo?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, g.title,
-                    Modifier.heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
+                    Modifier.heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit, alignment = pin.alignment())
                 Text(g.title, Modifier.alpha(if (logo == null) 1f else 0f), style = MaterialTheme.typography.titleLargeEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -832,7 +835,9 @@ internal fun featuredGames(games: List<Game>, mode: cc.xdan.frontend.model.Spotl
 private fun manageItems(g: Game, s: cc.xdan.frontend.model.Settings) = listOf(if (g.hidden) "Show in library" else "Hide from library", "Rename", "Remove from library",
     // Chosen mode: you pick the list. Other modes: you can only keep a game out.
     if (s.spotlight == cc.xdan.frontend.model.SpotlightMode.CHOSEN) { if (g.id in s.spotlightGames) "Remove from spotlight" else "Add to spotlight" }
-    else { if (g.id in s.spotlightHidden) "Show in spotlight" else "Hide from spotlight" })
+    else { if (g.id in s.spotlightHidden) "Show in spotlight" else "Hide from spotlight" },
+    "Logo position: " + g.effectiveLogoPin(s.logoPin).label + if (g.logoPin != null) "" else " (default)") +
+    listOfNotNull("Reset logo position".takeIf { g.logoPin != null })
 
 private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController, overlays: MutableList<Overlay>) {
     when (o.focus) {
@@ -846,6 +851,17 @@ private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController,
             else if (o.game.id !in s.spotlightGames && app.isUnplayable(o.game))
                 overlays += Overlay.ConfirmSpotlight(o.game, if (!o.game.installed) "This title isn't installed. Add anyway?" else "There's no emulator for this title. Add anyway?")
             else { app.toggleSpotlight(o.game.id); overlays.removeAt(overlays.lastIndex) }
+        }
+        // Each press moves the logo to the next spot; this game keeps it whatever the global setting says.
+        4 -> {
+            val pins = cc.xdan.frontend.model.LogoPin.entries
+            val next = pins[(o.game.effectiveLogoPin(app.settings.value.logoPin).ordinal + 1) % pins.size]
+            app.setLogoPin(o.game.id, next)
+            overlays.indexOfFirst { it is Overlay.Manage }.takeIf { it >= 0 }?.let { overlays[it] = o.copy(game = o.game.copy(logoPin = next)) }
+        }
+        5 -> {
+            app.setLogoPin(o.game.id, null)
+            overlays.indexOfFirst { it is Overlay.Manage }.takeIf { it >= 0 }?.let { overlays[it] = o.copy(game = o.game.copy(logoPin = null), focus = 4) }
         }
     }
 }
@@ -882,13 +898,20 @@ private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (
             .background(MaterialTheme.colorScheme.surfaceContainerHighest).clickable { onPick(i) }) {
             art?.let { Image(it, g.title, Modifier.fillMaxSize().heroBlur(heroNeedsBlur || heroPath == null), contentScale = ContentScale.Crop) }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
-            androidx.compose.animation.AnimatedVisibility(current, Modifier.align(Alignment.BottomStart), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
-            Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                val l = logo
-                if (l != null) Image(l, g.title, Modifier.heightIn(max = 96.dp).widthIn(max = 380.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
+            val pin = rememberLogoPin(g)
+            androidx.compose.animation.AnimatedVisibility(current, Modifier.fillMaxSize(), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+            Box(Modifier.fillMaxSize()) {
+            // Logo at its pinned spot (bottom left sits above the info line).
+            val l = logo
+            if (l != null && pin != cc.xdan.frontend.model.LogoPin.BOTTOM_LEFT)
+                Image(l, g.title, Modifier.align(pin.alignment()).padding(horizontal = 28.dp, vertical = if (pin == cc.xdan.frontend.model.LogoPin.BOTTOM_CENTER) 64.dp else 28.dp)
+                    .heightIn(max = 110.dp).widthIn(max = 420.dp), contentScale = ContentScale.Fit)
+            Column(Modifier.align(Alignment.BottomStart).padding(28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (l != null) { if (pin == cc.xdan.frontend.model.LogoPin.BOTTOM_LEFT) Image(l, g.title, Modifier.heightIn(max = 96.dp).widthIn(max = 380.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart) }
                 else Text(g.title, style = MaterialTheme.typography.headlineMediumEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(listOfNotNull(Platforms.get(g.platformId).name, g.lastPlayed?.let { "Played ${formatAgo(it).lowercase()}" } ?: if (g.favorite) "Favourite" else "New")
                     .joinToString("  ·  "), style = MaterialTheme.typography.titleSmall, color = Color.White.copy(alpha = 0.85f), maxLines = 1)
+            }
             }
             }
         }

@@ -59,6 +59,10 @@ data class Game(
     val titleLocked: Boolean = false,
     /** RetroAchievements game id from the ROM hash (0 = not in RA's database; null = not looked up). */
     val raGameId: Int? = null,
+    /** Your logo position for this game (wins over the global setting); null = follow the global setting. */
+    val logoPin: LogoPin? = null,
+    /** The game's own default (Steam's pinned position), used when the global setting is "Match Steam". */
+    val defaultLogoPin: LogoPin? = null,
     /** False for owned-but-not-installed launcher games (shown greyed out with Install). */
     val installed: Boolean = true,
     /** Operating systems the game supports (Steam: windows/macos/linux), for installing. */
@@ -72,6 +76,9 @@ data class Game(
         id.startsWith("crossover-steam-") || id.startsWith("parallels-steam-") -> id.substringAfterLast('-')
         else -> null
     }
+
+    /** Per-game choice → global choice → the game's Steam default → bottom left. */
+    fun effectiveLogoPin(global: LogoPin?): LogoPin = logoPin ?: global ?: defaultLogoPin ?: LogoPin.BOTTOM_LEFT
 }
 
 @Serializable
@@ -146,6 +153,8 @@ data class Settings(
     val pauseInBackground: Boolean = true,
     /** Wide hero art: sharp, or blurred (Steam's own blurred copy where there is one). */
     val blurredHeroes: Boolean = false,
+    /** Logo position on wide art for every game without its own; null = each game's Steam default. */
+    val logoPin: LogoPin? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Brand purple (M3 baseline primary). */
     val seedColor: Long = 0xFF6750A4,
@@ -211,5 +220,12 @@ data class Settings(
 @Serializable
 /** What the Big Screen spotlight shows. */
 enum class SpotlightMode(val label: String) { RECENT("Recently played"), FAVOURITES("Favourites"), RANDOM("Random"), CHOSEN("Chosen games") }
+
+/** Where the logo sits on wide art (Steam's pinned positions). */
+enum class LogoPin(val label: String, val steam: String) {
+    BOTTOM_LEFT("Bottom left", "BottomLeft"), BOTTOM_CENTER("Bottom centre", "BottomCenter"),
+    CENTER("Centre", "CenterCenter"), UPPER_CENTER("Top centre", "UpperCenter");
+    companion object { fun fromSteam(s: String?) = entries.firstOrNull { it.steam.equals(s, true) } }
+}
 
 enum class XmbBackground(val label: String) { WAVES("Waves"), SHAPES("Shapes"), SQUIGGLES("Squiggles"), MIX("Mix"), OFF("Off") }

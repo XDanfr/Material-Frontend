@@ -315,3 +315,17 @@ fun rememberHeroArt(game: Game): Pair<String?, Boolean> {
 }
 
 fun Modifier.heroBlur(apply: Boolean): Modifier = if (apply) this.blur(24.dp) else this
+
+/** Where [game]'s logo goes on wide art (its own choice → global → Steam default). */
+@Composable
+fun rememberLogoPin(game: Game): cc.xdan.frontend.model.LogoPin {
+    val global = cc.xdan.frontend.ui.theme.LocalApp.current.settings.state.collectAsState().value.logoPin
+    return game.effectiveLogoPin(global)
+}
+
+fun cc.xdan.frontend.model.LogoPin.alignment(): androidx.compose.ui.Alignment = when (this) {
+    cc.xdan.frontend.model.LogoPin.BOTTOM_LEFT -> androidx.compose.ui.Alignment.BottomStart
+    cc.xdan.frontend.model.LogoPin.BOTTOM_CENTER -> androidx.compose.ui.Alignment.BottomCenter
+    cc.xdan.frontend.model.LogoPin.CENTER -> androidx.compose.ui.Alignment.Center
+    cc.xdan.frontend.model.LogoPin.UPPER_CENTER -> androidx.compose.ui.Alignment.TopCenter
+}

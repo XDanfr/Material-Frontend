@@ -30,6 +30,11 @@ object CompatSteam {
         .filter { c -> listOf("Program Files (x86)/Steam", "Program Files/Steam").any { File(c, it).isDirectory } }
         .map { it.name.removePrefix("[C] ").removeSuffix(".hidden").trim() }
 
+    /** Windows Steam folders inside CrossOver bottles (for appinfo/art). */
+    fun crossoverRoots(bottles: File = crossoverBottlesDir()): List<File> = bottles.listFiles { f -> f.isDirectory }.orEmpty().mapNotNull { b ->
+        listOf("Program Files (x86)/Steam", "Program Files/Steam").map { File(b, "drive_c/$it") }.firstOrNull { File(it, "steamapps").isDirectory }
+    }
+
     fun scanAll(): List<Game> = when (HostOs.current) {
         HostOs.MAC -> crossover() + parallels()
         HostOs.LINUX -> crossover()

@@ -276,7 +276,14 @@ class AppController {
             val heroicOwned = if (s.showNotInstalled && s.importLaunchers && "heroic" !in s.disabledLaunchers && "heroic" !in newLaunchers)
                 runCatching { LauncherSources.heroicOwned(launchers.map { it.id }.toSet()).map { g -> existing[g.id]?.copy(installed = false, path = g.path) ?: g } }.getOrDefault(emptyList())
                 else emptyList()
-            val all = (imported + steam + launchers + keep + notInstalled + heroicOwned).distinctBy { it.id }.filter { it.id !in settings.value.removedGames }
+            val merged = (imported + steam + launchers + keep + notInstalled + heroicOwned).distinctBy { it.id }.filter { it.id !in settings.value.removedGames }
+            // Steam's default logo position for each Steam game (your own per-game choice is a separate field and never touched).
+            val all = runCatching {
+                val ids = merged.mapNotNull { it.steamAppId }.toSet()
+                val roots = listOfNotNull(steamLib.steamRoot()) + CompatSteam.crossoverRoots()
+                val info = roots.map { File(it, "appcache/appinfo.vdf") }.filter { it.isFile }.fold(emptyMap<String, SteamAppInfo.App>()) { acc, f -> SteamAppInfo.read(f, ids) + acc }
+                merged.map { g -> g.steamAppId?.let { info[it] }?.logoPosition?.let(cc.xdan.frontend.model.LogoPin::fromSteam)?.let { g.copy(defaultLogoPin = it) } ?: g }
+            }.getOrDefault(merged)
             library.update { all }
             _scan.value = ScanState(false, "", all.size)
             toast("Library updated · ${all.size} games")
@@ -355,6 +362,8 @@ class AppController {
             ra.progress(http, id, s.raUser, s.raApiKey)?.let { p -> _achievements.value = _achievements.value + (game.id to p) }
         }
     }
+
+    fun setLogoPin(id: String, pin: cc.xdan.frontend.model.LogoPin?) = library.updateGame(id) { it.copy(logoPin = pin) }
 
     fun rename(id: String, title: String) {
         val before = library.value.firstOrNull { it.id == id } ?: return

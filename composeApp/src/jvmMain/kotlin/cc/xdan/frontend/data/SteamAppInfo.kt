@@ -9,7 +9,7 @@ import java.nio.ByteOrder
  * app's name, type and supported OSes without going online.
  */
 object SteamAppInfo {
-    data class App(val id: String, val name: String, val type: String, val oslist: Set<String>)
+    data class App(val id: String, val name: String, val type: String, val oslist: Set<String>, val logoPosition: String? = null)
 
     private const val V27 = 0x07564427; private const val V28 = 0x07564428; private const val V29 = 0x07564429
 
@@ -41,7 +41,8 @@ object SteamAppInfo {
                     if (common != null) {
                         val name = common["name"] as? String
                         if (name != null) out[id] = App(id, name, (common["type"] as? String)?.lowercase() ?: "",
-                            (common["oslist"] as? String)?.split(',')?.map { it.trim().lowercase() }?.filter { it.isNotEmpty() }?.toSet() ?: emptySet())
+                            (common["oslist"] as? String)?.split(',')?.map { it.trim().lowercase() }?.filter { it.isNotEmpty() }?.toSet() ?: emptySet(),
+                            ((common["library_assets"] as? Map<String, Any>)?.get("logo_position") as? Map<String, Any>)?.get("pinned_position") as? String)
                     }
                 }
             }

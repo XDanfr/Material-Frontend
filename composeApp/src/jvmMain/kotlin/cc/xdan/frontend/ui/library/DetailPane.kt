@@ -2,6 +2,7 @@
 
 package cc.xdan.frontend.ui.library
 
+import cc.xdan.frontend.ui.components.alignment
 import cc.xdan.frontend.ui.components.heroBlur
 import cc.xdan.frontend.emulators.launchLabel
 import androidx.compose.material3.IconButtonDefaults
@@ -111,7 +112,8 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                 if (h != null) Image(h, null, Modifier.fillMaxSize().heroBlur(heroNeedsBlur), contentScale = ContentScale.Crop)
                 else CoverArt(game, Modifier.fillMaxSize(), preferWide = true)
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to MaterialTheme.colorScheme.surfaceContainerLow)))
-                logo?.let { Image(it, game.title, Modifier.align(Alignment.BottomStart).padding(16.dp).heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit) }
+                val pin = cc.xdan.frontend.ui.components.rememberLogoPin(game)
+                logo?.let { Image(it, game.title, Modifier.align(pin.alignment()).padding(16.dp).heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit) }
                 IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
                     Icon(Icons.Outlined.Close, "Close", Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f), RoundedCornerShape(50)).padding(6.dp))
                 }
@@ -162,6 +164,11 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                         IconButton(shapes = IconButtonDefaults.shapes(), onClick = { moreOpen = true }) { Icon(Icons.Outlined.MoreVert, "More") }
                         DropdownMenu(moreOpen, { moreOpen = false }) {
                             DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { renaming = true; moreOpen = false })
+                            // Logo position for this game only (the global setting never changes it); Reset returns it to the default.
+                            cc.xdan.frontend.model.LogoPin.entries.forEach { pin ->
+                                DropdownMenuItem(text = { Text("Logo: ${pin.label}" + if (game.logoPin == pin) "  ✓" else "") }, onClick = { app.setLogoPin(game.id, pin); moreOpen = false })
+                            }
+                            if (game.logoPin != null) DropdownMenuItem(text = { Text("Reset logo position") }, onClick = { app.setLogoPin(game.id, null); moreOpen = false })
                             DropdownMenuItem(text = { Text("Re-fetch artwork") }, onClick = { app.scraper.scrape(listOf(game), force = true); moreOpen = false })
                             if (File(game.path).exists()) DropdownMenuItem(text = { Text("Show in folder") }, onClick = { Launchers.reveal(File(game.path)); moreOpen = false })
                             DropdownMenuItem(text = { Text(if (game.hidden) "Unhide" else "Hide") }, onClick = { app.setHidden(setOf(game.id), !game.hidden); moreOpen = false })

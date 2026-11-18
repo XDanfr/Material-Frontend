@@ -98,6 +98,11 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
             ToggleSetting("startFullscreen", "Start in fullscreen", null, s.startFullscreen) { v -> set { it.copy(startFullscreen = v) } },
             ChoiceSetting("heroStyle", "Hero art", "The wide artwork behind games", listOf("Sharp", "Blurred"), if (s.blurredHeroes) 1 else 0,
                 { i -> set { it.copy(blurredHeroes = i == 1) } }),
+            ChoiceSetting("logoPin", "Logo position", "On wide art · games you've set yourself keep their own",
+                listOf("Match Steam") + cc.xdan.frontend.model.LogoPin.entries.map { it.label }, s.logoPin?.let { it.ordinal + 1 } ?: 0,
+                { i -> set { it.copy(logoPin = if (i == 0) null else cc.xdan.frontend.model.LogoPin.entries[i - 1]) } }),
+            ActionSetting("logoPinReset", "Reset logo position", if (s.logoPin == null) "Already using each game's default" else "Back to each game's Steam default",
+                "Reset", { set { it.copy(logoPin = null) } }),
             ToggleSetting("pauseInBackground", "Pause games in the background", "When another app is in front, the built-in player pauses", s.pauseInBackground) { v -> set { it.copy(pauseInBackground = v) } },
             ToggleSetting("minimise", "Minimise while an external emulator runs", null, s.minimizeOnExternalLaunch) { v -> set { it.copy(minimizeOnExternalLaunch = v) } },
         )
