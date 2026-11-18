@@ -36,6 +36,16 @@ class SetupKeyboardTest {
         val deadline = System.currentTimeMillis() + 3000
         while (app.settings.value.usage == null && System.currentTimeMillis() < deadline) { pump(16); Thread.sleep(10) }
         kotlin.test.assertEquals(cc.xdan.frontend.model.Usage.EMULATION, app.settings.value.usage, "Right then Enter should choose Emulation")
+        // Continue (Tab = Start) to the next page; keys must still drive that page, not the first one.
+        fun tap(k: Key) { handleKey(app, KeyEvent(k, KeyEventType.KeyDown)); handleKey(app, KeyEvent(k, KeyEventType.KeyUp)); repeat(40) { pump(16); Thread.sleep(10) } }
+        tap(Key.Tab)
+        val second = app.settings.value.onboardingStep
+        kotlin.test.assertNotEquals("USAGE", second, "Tab continues")
+        tap(Key.Tab)
+        val third = app.settings.value.onboardingStep
+        kotlin.test.assertNotEquals(second, third, "keys still work on the page after continuing")
+        tap(Key.Escape)
+        kotlin.test.assertEquals(second, app.settings.value.onboardingStep, "Back from the third page goes to the second")
         scene.close()
         app.shutdown()
     }
