@@ -347,6 +347,10 @@ fun ScraperPanel() {
         SectionTitle("SteamGridDB")
         OutlinedTextField(s.steamGridDbKey, { v -> upd { it.copy(steamGridDbKey = v.trim()) } }, label = { Text("API key") }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), supportingText = { Text("steamgriddb.com → Preferences → API") })
+        SectionTitle("Steam Web API")
+        OutlinedTextField(s.steamApiKey, { v -> upd { it.copy(steamApiKey = v.trim()) } }, label = { Text("API key") }, singleLine = true,
+            visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
+            supportingText = { Text("Optional: lists every Steam game you own, installed or not · steamcommunity.com/dev/apikey") })
         SectionTitle("IGDB (Twitch)")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(s.igdbClientId, { v -> upd { it.copy(igdbClientId = v.trim()) } }, label = { Text("Client ID") }, singleLine = true, modifier = Modifier.weight(1f))

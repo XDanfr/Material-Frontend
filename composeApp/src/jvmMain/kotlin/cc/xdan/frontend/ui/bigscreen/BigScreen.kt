@@ -138,7 +138,7 @@ fun buildShelves(games: List<Game>): List<Shelf> {
     val out = ArrayList<Shelf>()
     visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed }.take(15).takeIf { it.isNotEmpty() }?.let { out += Shelf("Continue playing", it) }
     visible.filter { it.favorite }.sortedBy { it.sortKey }.takeIf { it.isNotEmpty() }?.let { out += Shelf("Favourites", it) }
-    visible.sortedByDescending { it.addedAt }.take(15).takeIf { it.isNotEmpty() }?.let { out += Shelf("Recently added", it) }
+    visible.filter { it.installed }.sortedByDescending { it.addedAt }.take(15).takeIf { it.isNotEmpty() }?.let { out += Shelf("Recently added", it) }
     visible.filter { it.kind == GameKind.PORT }.takeIf { it.isNotEmpty() }?.let { out += Shelf("Ports & recomps", it) }
     visible.groupBy { it.platformId }.toList().sortedByDescending { it.second.size }.forEach { (pid, list) ->
         out += Shelf(Platforms.get(pid).name, list.sortedBy { it.sortKey })
@@ -519,7 +519,7 @@ private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack:
                     Text(listOfNotNull(Platforms.get(g.platformId).name, g.meta.releaseYear?.toString(), g.meta.developer, g.lastPlayed?.let { "Played ${formatAgo(it).lowercase()}" } ?: "Never played", formatPlayTime(g.playTimeSeconds).takeIf { g.playTimeSeconds > 0 }).joinToString("  ·  "),
                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        BigButton("Play", focus == 0, primary = true) { onAction(0); onPlay() }
+                        BigButton(if (g.installed) "Play" else "Install", focus == 0, primary = true) { onAction(0); onPlay() }
                         BigButton("Favourite", focus == 1, suffix = "d", showSuffix = g.favorite) { onAction(1); app.toggleFavorite(g.id) }
                         BigButton("Launch with…", focus == 2) { onAction(2); onLaunchWith() }
                         BigButton("More…", focus == 3) { onAction(3); onMore() }
@@ -670,7 +670,7 @@ private const val HIDDEN = "__hidden"
 
 /** Spotlight picks: what you're playing, favourites, then new arrivals — preferring games with wide art. */
 private fun featuredGames(games: List<Game>): List<Game> {
-    val visible = games.filter { !it.hidden }
+    val visible = games.filter { !it.hidden && it.installed }
     val ordered = (visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed } +
         visible.filter { it.favorite } + visible.sortedByDescending { it.addedAt }).distinctBy { it.id }
     val wide = ordered.filter { it.assets.hero != null || it.assets.screenshot != null }

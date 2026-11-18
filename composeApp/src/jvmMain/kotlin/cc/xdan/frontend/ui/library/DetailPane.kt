@@ -129,7 +129,7 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                                 val playPressed by playInteraction.collectIsPressedAsState()
                                 SplitButtonDefaults.LeadingButton(onClick = { app.play(game) }, interactionSource = playInteraction) {
                                     Icon(Icons.Filled.PlayArrow, null, Modifier.size(SplitButtonDefaults.LeadingIconSize)); Spacer(Modifier.width(8.dp))
-                                    Text("Play", style = MaterialTheme.typography.labelLarge.reactive(playHovered || playPressed) { if (playPressed) FlexRecipes.press(this) else copy(wdth = 118f, wght = 700f, rond = 100f) })
+                                    Text(if (game.installed) "Play" else "Install", style = MaterialTheme.typography.labelLarge.reactive(playHovered || playPressed) { if (playPressed) FlexRecipes.press(this) else copy(wdth = 118f, wght = 700f, rond = 100f) })
                                 }
                             },
                             trailingButton = {

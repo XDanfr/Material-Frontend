@@ -57,6 +57,10 @@ data class Game(
     val scraped: Boolean = false,
     /** User edited title — don't overwrite on rescan/scrape. */
     val titleLocked: Boolean = false,
+    /** False for owned-but-not-installed launcher games (shown greyed out with Install). */
+    val installed: Boolean = true,
+    /** Operating systems the game supports (Steam: windows/macos/linux), for installing. */
+    val os: Set<String> = emptySet(),
 ) {
     val sortKey: String get() = title.lowercase().removePrefix("the ").trim()
 
@@ -114,6 +118,8 @@ data class CustomSystem(val id: String, val name: String, val extensions: List<S
 @Serializable
 data class ScraperSettings(
     val steamGridDbKey: String = "",
+    /** Steam Web API key: complete owned-games list (otherwise only games Steam lists locally). */
+    val steamApiKey: String = "",
     val igdbClientId: String = "",
     val igdbClientSecret: String = "",
     val providerOrder: List<String> = listOf("steamgriddb", "igdb", "libretro"),
@@ -148,6 +154,8 @@ data class Settings(
     val dismissedDiscoveries: Set<String> = emptySet(),
     /** Games removed from the library (rescans skip them). */
     val removedGames: Set<String> = emptySet(),
+    /** Show owned games that aren't installed (greyed out, with Install). */
+    val showNotInstalled: Boolean = true,
     /** Frontend controls: Nav name → AWT key code / Pad name (added to the defaults). */
     val uiKeyBindings: Map<String, Long> = emptyMap(),
     val uiPadBindings: Map<String, String> = emptyMap(),

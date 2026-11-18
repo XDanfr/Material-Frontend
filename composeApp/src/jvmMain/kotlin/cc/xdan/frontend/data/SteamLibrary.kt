@@ -178,7 +178,7 @@ class SteamLibrary {
 
     companion object {
         /** Non-game app ids / names to skip (runtimes, Proton, redistributables). */
-        val SKIP_IDS = setOf("228980", "1070560", "1391110", "1628350", "1493710", "1826330", "2180100", "250820", "1887720", "2348590", "961940", "1245040", "1420170", "1580130", "2805730", "3658110")
+        val SKIP_IDS = setOf("480", "228980", "1070560", "1391110", "1628350", "1493710", "1826330", "2180100", "250820", "1887720", "2348590", "961940", "1245040", "1420170", "1580130", "2805730", "3658110")
         val SKIP_NAME = Regex("(?i)proton|steam linux runtime|steamworks|redistributable|soundtrack|dedicated server|sdk|steamvr")
         fun isTool(appId: String, name: String) = appId in SKIP_IDS || SKIP_NAME.containsMatchIn(name)
 

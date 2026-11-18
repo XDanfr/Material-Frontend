@@ -194,7 +194,7 @@ fun XmbScreen() {
 
     fun gameOptions(g: Game) {
         val fav = if (g.favorite) "Remove from Favourites" else "Add to Favourites"
-        sidebar = Sidebar(g.title, listOf("Play", fav, "Launch with…", if (g.hidden) "Show in library" else "Hide from library", "Remove from library")) { i ->
+        sidebar = Sidebar(g.title, listOf(if (g.installed) "Play" else "Install", fav, "Launch with…", if (g.hidden) "Show in library" else "Hide from library", "Remove from library")) { i ->
             when (i) {
                 0 -> app.play(g)
                 1 -> app.toggleFavorite(g.id)

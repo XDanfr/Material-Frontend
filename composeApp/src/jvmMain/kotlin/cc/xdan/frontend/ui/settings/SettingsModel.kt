@@ -118,6 +118,7 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
             }
         } + listOf(
             ToggleSetting("gamelists", "Use existing ES-DE / Pegasus metadata", null, s.importGamelists) { v -> set { it.copy(importGamelists = v) } },
+            ToggleSetting("notInstalled", "Show games you own but haven't installed", "Steam · greyed out, with Install", s.showNotInstalled) { v -> set { it.copy(showNotInstalled = v) } },
             ToggleSetting("rescanStartup", "Look for new games at start-up", null, s.rescanOnStartup) { v -> set { it.copy(rescanOnStartup = v) } },
             ActionSetting("rescan", "Rescan library", "$gameCount games", "Rescan", { app.rescan() }),
         )

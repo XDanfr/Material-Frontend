@@ -1,5 +1,11 @@
 package cc.xdan.frontend
 
+import cc.xdan.frontend.data.HostOs
+import cc.xdan.frontend.data.CompatSteam
+import cc.xdan.frontend.data.Installs
+import cc.xdan.frontend.data.InstallTarget
+import cc.xdan.frontend.data.SteamAppInfo
+import cc.xdan.frontend.data.SteamOwned
 import cc.xdan.frontend.input.Nav
 import cc.xdan.frontend.model.Usage
 import cc.xdan.frontend.input.Pad
@@ -240,7 +246,7 @@ class AppController {
             if (found.isNotEmpty() && s.onboardingComplete) _discoveries.value = found
             val steamGames = if (s.importSteam && "steam" !in newLaunchers) steamFound else emptyList()
             val steam = steamGames.map { g ->
-                existing[g.id]?.let { prev -> prev.copy(path = g.path, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero ?: g.assets.hero, logo = prev.assets.logo ?: g.assets.logo)) } ?: g
+                existing[g.id]?.let { prev -> prev.copy(path = g.path, installed = true, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero ?: g.assets.hero, logo = prev.assets.logo ?: g.assets.logo)) } ?: g
             }
             _scan.value = _scan.value.copy(current = "Other launchers")
             val launchers = if (s.importLaunchers) perSource.filterKeys { it !in s.disabledLaunchers && it !in newLaunchers }.values.flatten().distinctBy { it.id }.map { g ->
@@ -248,7 +254,18 @@ class AppController {
             } else emptyList()
             val imported = if (s.importGamelists) Gamelists.apply(roms, s.romFolders) else roms
             val keep = library.value.filter { it.kind == GameKind.PORT }
-            val all = (imported + steam + launchers + keep).distinctBy { it.id }.filter { it.id !in settings.value.removedGames }
+            // Owned Steam games that aren't installed anywhere (host, CrossOver, Parallels).
+            val notInstalled = if (s.showNotInstalled && s.importSteam && "steam" !in newLaunchers) runCatching {
+                _scan.value = _scan.value.copy(current = "Steam library")
+                val root = steamLib.steamRoot() ?: return@runCatching emptyList()
+                val installedIds = (steamFound.map { it.path } + launchers.mapNotNull { it.steamAppId }).toSet()
+                val owned = if (s.scraper.steamApiKey.isNotBlank()) SteamOwned.webOwned(http, s.scraper.steamApiKey, root)
+                    .ifEmpty { SteamOwned.localIds(root).map { SteamOwned.Owned(it, null) } }
+                    else SteamOwned.localIds(root).map { SteamOwned.Owned(it, null) }
+                val info = SteamAppInfo.read(File(root, "appcache/appinfo.vdf"), owned.map { it.appId }.toSet())
+                SteamOwned.notInstalled(owned, installedIds, info, root).map { g -> existing[g.id]?.copy(installed = false, os = g.os) ?: g }
+            }.getOrDefault(emptyList()) else emptyList()
+            val all = (imported + steam + launchers + keep + notInstalled).distinctBy { it.id }.filter { it.id !in settings.value.removedGames }
             library.update { all }
             _scan.value = ScanState(false, "", all.size)
             toast("Library updated · ${all.size} games")
@@ -267,6 +284,26 @@ class AppController {
         }.map { it.id }
         val viaEmulators = s.emulators.filter { it.enabled }.flatMap { it.platforms }.filter { it != "*" }
         return (viaCores + viaEmulators).toSet()
+    }
+
+    // ---------- Installing owned games ----------
+    fun installTargets(game: Game): List<InstallTarget> = Installs.targets(game.os, HostOs.current,
+        if (HostOs.current == HostOs.WINDOWS) emptyList() else CompatSteam.crossoverSteamBottles(),
+        if (HostOs.current == HostOs.MAC) CompatSteam.parallelsSteamVms() else emptyList())
+
+    /** Starts installing [game] in its launcher (Steam on this machine, or Steam in CrossOver/Parallels). */
+    fun install(game: Game, target: InstallTarget? = null) {
+        val t = target ?: installTargets(game).firstOrNull()
+        if (t == null) {
+            val host = when (HostOs.current) { HostOs.MAC -> "Mac"; HostOs.LINUX -> "Linux"; HostOs.WINDOWS -> "Windows" }
+            toast("${game.title} has no $host version" + if (HostOs.current == HostOs.MAC) " — add Steam to CrossOver or Parallels to install Windows games" else "")
+            return
+        }
+        val cmd = Installs.command(t, game.path)
+        if (cmd == null) Launchers.openUri("steam://install/${game.path}")
+        else runCatching { ProcessBuilder(listOf(cmd.first) + cmd.second).redirectErrorStream(true).start() }
+            .onFailure { toast("Couldn't start ${t.label}: ${it.message}"); return }
+        toast("Installing ${game.title} with ${t.label} — it'll appear here when it's done")
     }
 
     fun toggleFavorite(id: String) = library.updateGame(id) { it.copy(favorite = !it.favorite) }
@@ -361,6 +398,7 @@ class AppController {
     // ---------- Launching ----------
 
     fun play(game: Game, launcherKey: String? = null) {
+        if (!game.installed) { install(game); return }
         if (_session.value != null || _external.value != null) { toast("A game is already running"); return }
         val s = settings.value
         // The full-screen launch screen is a controller-mode thing; the library view keeps its toasts.

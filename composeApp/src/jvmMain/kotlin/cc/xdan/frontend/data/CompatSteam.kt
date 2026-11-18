@@ -17,6 +17,18 @@ import java.io.File
 object CompatSteam {
     private val home = System.getProperty("user.home")
     private val steamExe = "C:\\Program Files (x86)\\Steam\\steam.exe"
+    const val STEAM_EXE = "C:\\Program Files (x86)\\Steam\\steam.exe"
+    const val PRLCTL = "/usr/local/bin/prlctl"
+
+    /** CrossOver bottles that have Windows Steam installed. */
+    fun crossoverSteamBottles(bottles: File = crossoverBottlesDir()): List<String> = bottles.listFiles { f -> f.isDirectory }.orEmpty()
+        .filter { b -> listOf("Program Files (x86)/Steam", "Program Files/Steam").any { File(b, "drive_c/$it/steam.exe").isFile || File(b, "drive_c/$it/steamapps").isDirectory } }
+        .map { it.name }
+
+    /** Parallels VMs (by shared C: drive) that have Windows Steam installed. */
+    fun parallelsSteamVms(volumes: File = File("/Volumes")): List<String> = volumes.listFiles { f -> f.isDirectory && f.name.startsWith("[C] ") }.orEmpty()
+        .filter { c -> listOf("Program Files (x86)/Steam", "Program Files/Steam").any { File(c, it).isDirectory } }
+        .map { it.name.removePrefix("[C] ").removeSuffix(".hidden").trim() }
 
     fun scanAll(): List<Game> = when (HostOs.current) {
         HostOs.MAC -> crossover() + parallels()

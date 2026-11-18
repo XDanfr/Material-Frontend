@@ -91,9 +91,14 @@ val LocalRunnable = androidx.compose.runtime.staticCompositionLocalOf<Set<String
 
 /** A ROM whose system has no installed emulator or core (kept so its history survives). */
 @Composable
-fun isUnavailable(game: Game): Boolean {
-    val r = LocalRunnable.current ?: return false
-    return game.kind == cc.xdan.frontend.model.GameKind.ROM && game.platformId !in r
+fun isUnavailable(game: Game): Boolean = unavailableReason(game) != null
+
+/** "Not installed" (owned launcher game) or "No emulator" (ROM whose system can't run), else null. */
+@Composable
+fun unavailableReason(game: Game): String? {
+    if (!game.installed) return "Not installed"
+    val r = LocalRunnable.current ?: return null
+    return if (game.kind == cc.xdan.frontend.model.GameKind.ROM && game.platformId !in r) "No emulator" else null
 }
 
 private val greyscale = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) })
@@ -103,14 +108,15 @@ private val greyscale = androidx.compose.ui.graphics.ColorFilter.colorMatrix(and
 fun CoverArt(game: Game, modifier: Modifier = Modifier, maxDim: Int = 400, preferWide: Boolean = false) {
     val path = if (preferWide) game.assets.hero ?: game.assets.screenshot ?: game.assets.cover else game.assets.cover ?: game.assets.screenshot
     val img by rememberImage(path, maxDim)
-    val unavailable = isUnavailable(game)
+    val reason = unavailableReason(game)
+    val unavailable = reason != null
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)
         .then(if (unavailable) Modifier.graphicsLayer { alpha = 0.55f } else Modifier)) {
         val bmp = img
         if (unavailable && bmp != null && maxWidth >= 90.dp) {
             androidx.compose.material3.Surface(Modifier.align(Alignment.TopEnd).padding(8.dp).zIndex(1f), shape = androidx.compose.foundation.shape.CircleShape,
                 color = MaterialTheme.colorScheme.inverseSurface) {
-                Text("No emulator", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall,
+                Text(reason ?: "", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.inverseOnSurface, maxLines = 1)
             }
         }
@@ -122,7 +128,7 @@ fun CoverArt(game: Game, modifier: Modifier = Modifier, maxDim: Int = 400, prefe
                 Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleMediumEmphasized, color = MaterialTheme.colorScheme.primary)
         } else {
             Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(if (unavailable) "NO EMULATOR · " + Platforms.get(game.platformId).shortName.uppercase() else Platforms.get(game.platformId).shortName.uppercase(),
+                Text(if (unavailable) (reason ?: "").uppercase() + " · " + Platforms.get(game.platformId).shortName.uppercase() else Platforms.get(game.platformId).shortName.uppercase(),
                     style = MaterialTheme.typography.labelMediumEmphasized, color = if (unavailable) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 Text(game.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 4, overflow = TextOverflow.Ellipsis)
