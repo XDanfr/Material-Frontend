@@ -110,3 +110,6 @@ tasks.matching { it.name == "createDistributable" }.configureEach {
         check(p.waitFor() == 0) { "codesign failed: $out" }
     }
 }
+
+// Tests construct several AppControllers against one scratch data folder: no start-up scans of the real machine.
+tasks.withType<Test>().configureEach { systemProperty("mf.noStartupScan", "true") }

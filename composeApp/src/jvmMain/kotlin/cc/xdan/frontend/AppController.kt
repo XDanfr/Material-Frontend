@@ -134,7 +134,8 @@ class AppController {
         scope.launch { settings.state.collect { Platforms.setCustom(it.customSystems); refreshRunnable(); controllers.padBindings = cc.xdan.frontend.input.UiBindings.padOverrides(it.uiPadBindings) } }
         controllers.start()
         // Pick up games added since last time (new ROMs, newly installed Steam/launcher games).
-        if (settings.value.onboardingComplete && settings.value.rescanOnStartup) rescan()
+        // (Tests set mf.noStartupScan so a saved "set up" state doesn't scan the real machine mid-test.)
+        if (settings.value.onboardingComplete && settings.value.rescanOnStartup && System.getProperty("mf.noStartupScan") == null) rescan()
         scope.launch {
             controllers.connected.collect { info ->
                 toast("${info.typeLabel} connected")
