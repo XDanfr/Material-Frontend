@@ -146,8 +146,10 @@ private fun steps(s: Settings, nintendoPad: Boolean): List<StepId> = buildList {
     add(StepId.WELCOME); add(StepId.USAGE); add(StepId.LOOK); add(StepId.CONTROLS)
     if (nintendoPad) add(StepId.NINTENDO)
     val usage = s.usage ?: Usage.BOTH
+    // Launchers (and, for "both", emulators too) come first: what's installed decides what gets scanned.
     if (usage != Usage.EMULATION) add(StepId.PC_LIBRARIES)
-    if (usage != Usage.GAMES) { add(StepId.FOLDERS); add(StepId.EMULATORS); add(StepId.CORES); add(StepId.BIOS) }
+    if (usage == Usage.EMULATION) add(StepId.EMULATORS)
+    if (usage != Usage.GAMES) { add(StepId.FOLDERS); add(StepId.CORES); add(StepId.BIOS) }
     add(StepId.ARTWORK); add(StepId.DONE)
 }
 
@@ -250,7 +252,7 @@ fun Onboarding() {
                     StepId.LOOK -> Look(stepScope, settings, ::back, ::next)
                     StepId.CONTROLS -> Controls(stepScope, settings, ::back, ::next)
                     StepId.NINTENDO -> NintendoLayout(stepScope, settings, ::back, ::next)
-                    StepId.PC_LIBRARIES -> PcLibraries(stepScope, settings, ::back, ::next)
+                    StepId.PC_LIBRARIES -> PcLibraries(stepScope, settings, withEmulators = settings.usage == Usage.BOTH, ::back, ::next)
                     StepId.FOLDERS -> Folders(stepScope, settings, ::back, ::next)
                     StepId.EMULATORS -> Emulators(stepScope, ::back, ::next)
                     StepId.CORES -> Cores(stepScope, ::back, ::next)
@@ -540,22 +542,64 @@ private fun NintendoLayout(s: StepScope, settings: Settings, back: () -> Unit, n
 }
 
 @Composable
-private fun PcLibraries(s: StepScope, settings: Settings, back: () -> Unit, next: () -> Unit) = with(s) {
+private fun PcLibraries(s: StepScope, settings: Settings, withEmulators: Boolean, back: () -> Unit, next: () -> Unit) = with(s) {
     val app = LocalApp.current
-    var steamCount by remember { mutableStateOf<Int?>(null) }
-    var otherCount by remember { mutableStateOf<Int?>(null) }
+    // Games per launcher; only launchers that are actually installed (have games) are offered.
+    var counts by remember { mutableStateOf<Map<String, Int>?>(null) }
+    var detecting by remember { mutableStateOf(withEmulators && settings.emulators.isEmpty()) }
     LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            steamCount = runCatching { SteamLibrary().let { it.scan().size + it.shortcuts().size } }.getOrDefault(0)
-            otherCount = runCatching { LauncherSources.scanAll().size }.getOrDefault(0)
+        counts = withContext(Dispatchers.IO) {
+            buildMap {
+                put("steam", runCatching { SteamLibrary().let { it.scan().size + it.shortcuts().size } }.getOrDefault(0))
+                LauncherSources.Source.entries.forEach { put(it.id, LauncherSources.scan(it).size) }
+            }
         }
+        // Everything shown here has been asked about, so later rescans only offer new ones.
+        val shown = counts.orEmpty().filterValues { it > 0 }.keys
+        app.updateSettings { it.copy(knownLaunchers = it.knownLaunchers.orEmpty() + shown) }
     }
-    fun found(n: Int?) = when (n) { null -> "Looking…"; 0 -> "Nothing installed yet"; 1 -> "1 game found"; else -> "$n games found" }
-    Question("Bring in your PC games?", "Installed games appear with their artwork and launch through their own launcher.", back, next) {
-        ChoiceRow {
-            Choice("Steam", found(steamCount), settings.importSteam, { app.updateSettings { it.copy(importSteam = !it.importSteam) } }, Icons.Outlined.Storefront)
-            Choice("Other launchers", "Epic, EA, Xbox, GOG, Ubisoft, Heroic, Lutris · " + found(otherCount), settings.importLaunchers,
-                { app.updateSettings { it.copy(importLaunchers = !it.importLaunchers) } }, Icons.Outlined.Widgets)
+    LaunchedEffect(Unit) {
+        if (!detecting) return@LaunchedEffect
+        val found = app.detectEmulators()
+        app.updateSettings { st ->
+            val existing = st.emulators.map { it.path }.toSet()
+            st.copy(emulators = st.emulators + found.filter { it.path !in existing }.map { it.toConfig() })
+        }
+        detecting = false
+    }
+    fun games(n: Int) = if (n == 1) "1 game" else "$n games"
+    val loading = counts == null || detecting
+    val launchers = counts.orEmpty().filterValues { it > 0 }
+    val emulatorNames = if (withEmulators) settings.emulators.map { it.name }.distinct() else emptyList()
+    val nothing = !loading && launchers.isEmpty() && emulatorNames.isEmpty()
+    Question(
+        when { loading -> "Looking for your launchers…"; withEmulators -> "Your launchers and emulators"; else -> "Your launchers" },
+        when {
+            loading -> "Checking what's installed" + if (HostOs.current == HostOs.MAC) ", including CrossOver and Parallels." else "."
+            nothing -> "Nothing found yet. You can add launchers and emulators later in Settings."
+            else -> "Pick the ones you want to use. Their games appear with artwork and launch the usual way."
+        }, back, next) {
+        if (loading) CartridgeLoader(Modifier.size(if (big) 120.dp else 96.dp))
+        else ChoiceRow {
+            launchers.forEach { (id, n) ->
+                if (id == "steam") Choice("Steam", games(n), settings.importSteam, { app.updateSettings { it.copy(importSteam = !it.importSteam) } }, Icons.Outlined.Storefront)
+                else {
+                    val src = LauncherSources.Source.entries.first { it.id == id }
+                    val on = settings.importLaunchers && id !in settings.disabledLaunchers
+                    Choice(src.label, games(n), on, {
+                        app.updateSettings { st ->
+                            val nowOn = st.importLaunchers && id !in st.disabledLaunchers
+                            st.copy(importLaunchers = true, disabledLaunchers = if (nowOn) st.disabledLaunchers + id else st.disabledLaunchers - id)
+                        }
+                    }, Icons.Outlined.Widgets)
+                }
+            }
+            emulatorNames.forEach { name ->
+                val on = settings.emulators.any { it.name == name && it.enabled }
+                Choice(name, "Emulator", on, {
+                    app.updateSettings { st -> st.copy(emulators = st.emulators.map { if (it.name == name) it.copy(enabled = !on) else it }) }
+                }, Icons.Outlined.SportsEsports)
+            }
         }
     }
 }
