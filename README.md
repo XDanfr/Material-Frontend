@@ -1,131 +1,106 @@
-# Material Frontend (WIP)
+# Material Frontend
+
+> **Work in progress.** Things are changing quickly and some features are still rough around the edges.
+
+A game library and emulation frontend for **Windows, macOS and Linux**, designed with Material 3 Expressive and built with Compose Multiplatform. It brings your PC launchers and your emulated systems together in one place, and you can browse it three ways: a desktop library, a controller-first Big Screen mode, or a PS3-inspired XMB.
 
 By [XDan](https://xdan.cc).
 
-A Material 3 Expressive emulation frontend for Windows, macOS and Linux, built with Compose Multiplatform.
+![Big Screen home](docs/screenshots/big-screen-home.jpg)
 
-- **Library view:** a Steam-library style grid or table with sorting, filtering, collections, multi-select and Ctrl+K quick launch.
-- **Big Screen:** controller-first shelves, a game page, an on-screen-keyboard search and a quick menu.
-- **XMB:** a cross-media-bar view with category morphs and tonal waves.
-- **In-app play:** libretro cores run inside the window through the Java FFM API, with save states and thumbnails, rewind, fast-forward, a CRT/LCD filter, SRAM autosave and rumble.
-  - **GPU cores (new):** cores that need OpenGL (N64, PSP, Dreamcast, PS1 HW) get an off-screen OpenGL context (CGL on macOS, GLFW on Windows/Linux) and their frames are read back into the same pipeline. RetroArch stays available under "Launch with". GLES/Vulkan-only cores aren't supported yet.
-  - **Core options:** legacy, v1 and v2 (with categories) appear in the in-game menu and are saved per core.
-  - **Disc swapping:** multi-disc games can change disc from the in-game menu.
-  - **Controls and players:** remap RetroPad buttons for one game or a whole system from the in-game menu (applies instantly), and choose which controller is which player.
-- **Standalone emulators:** detected and launched with per-emulator argument templates. This includes RetroArch, DuckStation, PCSX2, RPCS3, shadPS4, Vita3K, PPSSPP, Dolphin, Cemu, Ryujinx/Ryubing, Citron, Eden, Sudachi, suyu, Torzu, yuzu, Eglantine (Switch 2), Azahar, Lime3DS, melonDS, xemu, Xenia/Xenia Canary (including the Linux AppImage), Flycast, Redream, mGBA, Mesen, ares, RMG, simple64 and MAME. You can also add your own emulator, for example for PS5 when one exists.
-- **Steam import:** reads `libraryfolders.vdf`, the app manifests and non-Steam shortcuts (`shortcuts.vdf`), and uses the local library art and custom grid art.
-- **Other launchers:**
-  - Epic Games Launcher (`.item` manifests; the rebuilt launcher, including its Linux preview, is searched best-effort).
-  - EA app (`__Installer/installerdata.xml`).
-  - Xbox app (GDK packages with a `MicrosoftGame.config`, launched via `shell:AppsFolder`).
-  - GOG Galaxy and Ubisoft Connect (registry).
-  - Heroic (Epic, GOG and Amazon), including games you own but haven't installed (Install hands them to Heroic).
-  - Battle.net (`product.db`, launched with `battlenet://`).
-  - itch.io (install receipts; the game is launched directly).
-  - Lutris.
-  - Xbox games on Linux through Xodus/Nexus show up via Nexus's "Add to Steam" shortcuts.
-- **Existing setups:** ES-DE / EmulationStation `gamelist.xml` (including ES-DE's `downloaded_media`) and Pegasus `metadata.pegasus.txt` metadata and art are imported. They only fill gaps, so your own edits are kept.
-- **Ports, recomps and decomps:** pick the executable. The game and its original system are guessed (Zelda64Recomp → Majora's Mask on N64) and you can edit both.
-- **Scraping:**
-  - SteamGridDB (API key; prefers exact title matches) for covers, heroes and logos
-  - IGDB (Twitch credentials) for metadata
-  - libretro-thumbnails (no key) for retro box art
-  - Steam store and CDN for Steam games
-- **Controllers:** SDL3 through LWJGL, with hot-plug. It detects Xbox, PlayStation, Nintendo, Steam and 8BitDo pads, shows matching button glyphs, has an option for Nintendo-style confirm, and maps pads to 4 players.
-- **Setup:** one question per screen, centred cards, the same Back/Continue buttons throughout; controller, keyboard or mouse. It continues from the launch animation, asks what you'll use the app for (PC games, emulation or both) and only asks what's relevant: theme (Library, Big Screen or XMB, with previews), light or dark, PC libraries, game folders, emulators, cores, BIOS (only for your systems), artwork. Progress is saved, so it resumes where you left off, including after switching to fullscreen.
-- **Settings in every mode:** one settings list, rendered as the Settings screen (Library view), a Settings tab (Big Screen) and the Settings category (XMB); a change anywhere shows everywhere. Each mode also has its own section (layout and sort; clock and hints; waves and hints). Accent colours are Pixel-style chips showing each seed's primary, secondary and tertiary colours.
-- **CrossOver and Parallels:** Windows Steam, Epic, EA, GOG, Ubisoft (CrossOver) and Xbox (`XboxGames` folders, e.g. on a Parallels shared drive) games are listed and launched through CrossOver's `wine` / `prlctl`.
-- **Only what you can run:** emulators are found first and only systems with an installed core or emulator are scanned. Generic file types (archives, `.exe`, `.iso`, `.bin`…) only count inside a folder named after a system. Unknown emulators can be added step by step (what is it → what does it emulate → which file extensions). Games whose emulator goes away stay, greyed out, with their history.
-- **New on this machine:** each rescan looks for new emulators and launchers and asks whether to add them.
-- **Games you own but haven't installed:** Steam games appear greyed out with Install, when this machine can run them (Mac versions on macOS, plus Windows versions through Steam in CrossOver/Parallels; Windows and Linux versions on Linux; Windows versions on Windows). Add a Steam Web API key for the complete list; otherwise it's the games Steam lists locally.
-- **Start-up rescan:** new games are picked up every launch (can be turned off).
-- **Big Screen:** a spotlight hero carousel, Up from the top reaches the tabs, and More… hides, renames or removes a game (removals stick across rescans; hidden games have their own filter).
-- **XMB:** settings are pages with a PS3-style options sidebar; Triangle/Options opens a game's options (favourite, launch with, hide, remove). Backgrounds: ribbon waves with sparkles, floating Material shapes, squiggles or a mix, lit by the time of day.
-- **Remappable controls:** every frontend action can get its own key and controller button (Settings → Controllers).
-- **Big Screen extras:** a time-of-day greeting with your name (or your Steam name), a spotlight you can set to recent, favourites, random or chosen games, and a centred search you can type into with a keyboard.
-- **Power menu:** exit, switch mode, fullscreen, sleep, restart and shut down — the button after the tabs in Big Screen, the last category in the XMB.
-- **RetroAchievements:** add your username and Web API key (Settings → Scraping) to see your progress on game pages. Cartridge systems are identified with RA's own hash.
-- **In the background:** controllers are ignored while another app is in front, and the built-in player pauses until you come back.
-- **Renaming** a game re-fetches its artwork when SteamGridDB or IGDB is set up.
+## Screenshots
 
-## Build and run
+| | |
+|---|---|
+| ![Library view](docs/screenshots/library.jpg) **Library view** | ![XMB](docs/screenshots/xmb.jpg) **XMB** |
+| ![Big Screen shelf](docs/screenshots/big-screen-shelf.jpg) **Big Screen shelves** | ![Big Screen game page](docs/screenshots/big-screen-game.jpg) **Game page** |
 
-The only requirement is any JDK (11 or newer) to start the Gradle launcher. The build downloads JDK 25 itself (Gradle toolchains plus the daemon JVM criteria in `gradle/gradle-daemon-jvm.properties`).
+## Features
+
+### Three ways to browse
+- **Library view:** a Steam-style grid or table with sorting, filters, collections, multi-select and Ctrl+K quick launch.
+- **Big Screen:** made for the sofa and a controller. A greeting for the time of day, a spotlight you can set to recent, favourite, random or hand-picked games, shelves whose focused card opens up into its wide art, a game page, search with an on-screen or physical keyboard, and a power menu.
+- **XMB:** a cross-media bar with settings pages, a PS3-style options sidebar, and animated backgrounds (ribbons, floating shapes, squiggles or a mix) that follow the time of day.
+
+Settings are shared across all three, so a change in one shows up everywhere.
+
+### Play
+- **Built-in player:** libretro cores run inside the app, with save states, rewind, fast-forward, a CRT/LCD filter, core options, disc swapping, per-game or per-system button remapping and up to four players. Cores that need OpenGL (N64, PSP, Dreamcast and more) run too.
+- **Standalone emulators:** detected automatically and launched with the right arguments. That includes RetroArch, DuckStation, PCSX2, RPCS3, shadPS4, Vita3K, PPSSPP, Dolphin, Cemu, Ryujinx/Ryubing, Citron, Eden, Azahar, melonDS, xemu, Xenia, Flycast, mGBA, Mesen, ares, MAME and more. If one isn't recognised, you can add it yourself.
+- **Ports, recomps and decomps:** point at the executable; the game and its original system are guessed and can be edited.
+- **RetroAchievements:** sign in to see your progress, points and badges on game pages.
+
+### Your library
+- **PC launchers:** Steam, Epic Games, EA app, Xbox, GOG Galaxy, Ubisoft Connect, Battle.net, itch.io, Heroic and Lutris.
+- **CrossOver and Parallels:** Windows games installed through CrossOver bottles or a Parallels VM show up and launch from macOS.
+- **Games you own but haven't installed:** Steam and Heroic games appear greyed out with an Install button, when your machine can run them.
+- **Only what you can play:** emulators are found first, and game files are only picked up for systems you can actually run. New emulators and launchers are offered when they appear.
+- **Existing setups:** ES-DE / EmulationStation and Pegasus metadata and art are imported.
+- **Hide, rename, remove, favourite** from any view.
+
+### Artwork
+- Covers, wide art and logos from SteamGridDB, IGDB, libretro-thumbnails and Steam.
+- Sharp or blurred hero art.
+- Logo placement on a 3×3 grid with adjustable size, starting from Steam's own default for each game, and per-game overrides.
+- Platform logos for every system.
+
+### Controllers and input
+- Xbox, PlayStation, Nintendo, Steam and 8BitDo controllers with matching button prompts, hot-plugging and a Nintendo-style confirm option.
+- Every frontend action can be remapped to a key or controller button.
+- Controllers are ignored while another app is in front, and the built-in player pauses until you come back.
+
+### Setup
+A short guided setup asks what you'll use the app for (PC games, emulation or both) and only asks what's relevant from there: which view you prefer, light or dark, your launchers, game folders, emulators, cores, BIOS files and artwork.
+
+## Getting started
+
+There are no releases yet. Until then, every push builds installers for Windows, macOS (Apple Silicon and Intel) and Linux (x64 and arm64) in [GitHub Actions](../../actions), or you can build it yourself. The macOS builds aren't signed yet, so right-click the app and choose **Open** the first time.
+
+### Building from source
+
+You only need a JDK (11 or newer) to start Gradle; the build downloads the JDK it needs.
 
 ```bash
-./gradlew :composeApp:run                         # run
-./gradlew :composeApp:run --args="--bigscreen"    # start in Big Screen (also --xmb)
-./gradlew :composeApp:jvmTest                     # unit tests
-./gradlew :composeApp:packageDistributionForCurrentOS   # dmg / msi+exe / deb+rpm+AppImage dir
+./gradlew :composeApp:run                                   # run
+./gradlew :composeApp:run --args="--bigscreen"              # start in Big Screen (or --xmb)
+./gradlew :composeApp:packageDistributionForCurrentOS       # build an installer
 ```
 
-CI (`.github/workflows/build.yml`) tests and packages on Windows x64, Linux x64 and arm64, macOS Apple Silicon and macOS Intel. Tagging `v*` creates a draft release containing every installer. The macOS builds aren't signed, so right-click → Open the first time.
+Your data (settings, library, cores, saves and artwork) lives in:
 
-### Optional tests
-
-| Env var | Effect |
+| OS | Location |
 |---|---|
-| `MF_CORE_TESTS=1` | Downloads the tiny `2048` core and checks frames come out of the FFM libretro host |
-| `MF_SCREENSHOTS=<dir>` | Renders every UI mode offscreen to PNGs |
-| `MF_DATA_DIR=<dir>` | Uses a separate data folder (portable installs, tests) |
+| macOS | `~/Library/Application Support/MaterialFrontend` |
+| Windows | `%APPDATA%\MaterialFrontend` |
+| Linux | `~/.local/share/material-frontend` |
 
 ## Controls
 
 | | Controller | Keyboard |
 |---|---|---|
 | Navigate | D-pad / left stick | Arrows |
-| Confirm / Back | A / B (or ✕ / ○, swappable for Nintendo) | Enter / Esc |
+| Confirm / Back | A / B (✕ / ○) | Enter / Esc |
 | Favourite · Search / options | X · Y | F · / |
-| Tabs · Pages | LB/RB · LT/RT | Q/E · [ / ] (or PgUp/PgDn) |
+| Tabs · Pages | LB / RB · LT / RT | Q / E · [ / ] |
 | Menu | Start | Tab |
 | In-game menu | Guide, or Select + Start | Esc / F1 |
-| Fast-forward | Select + RB (toggle) | hold Tab |
-| Rewind | hold Select + LB | hold Backspace |
-| Save / load state | Quick menu | F5 / F7 |
-| Close external emulator | Guide | — |
+| Fast-forward | Select + RB | Hold Tab |
+| Rewind | Hold Select + LB | Hold Backspace |
+| Save / load state | In-game menu | F5 / F7 |
 
-In game, the keyboard maps to the RetroPad as follows: arrows = D-pad, Z/X/A/S = face buttons, Q/W = L/R, 1/3 = L2/R2, Enter = Start and Shift = Select. Fullscreen toggles with F11 on Windows and Linux and ⌃⌘F (Control-Command-F) on macOS; the green window button and Globe-F stay in sync.
+In game, the keyboard acts as a controller: arrows for the D-pad, Z / X / A / S for the face buttons, Q / W for the shoulders, Enter for Start and Shift for Select. Toggle fullscreen with F11 (Windows, Linux) or ⌃⌘F (macOS).
 
-## Icons and type
+## Roadmap
 
-- **Platform marks:** brand logos from [Simple Icons](https://simpleicons.org) 16.38.0 (CC0; logos remain their owners' trademarks). Nintendo, Xbox and a few others aren't in Simple Icons, so those systems use original hardware outlines drawn for this app.
+- Vulkan and OpenGL ES cores
+- Earning RetroAchievements while playing in the built-in player
+- Owned games straight from GOG Galaxy and the Epic launcher (Heroic covers both today)
+- Amazon Games app (Windows)
 
-- **App icon:** `packaging/macos/AppIcon.icon` is the Icon Composer source.
-  - `packaging/macos/build-icon.sh` (Xcode 26+) compiles it to `Assets.car`, which gives the Liquid Glass icon, plus `AppIcon.icns`. Both outputs are committed, so CI doesn't need Xcode 26.
-  - The Windows `.ico` and Linux `.png` are rendered from `composeApp/src/jvmMain/resources/icons/app-icon.svg` with `MF_WRITE_ICONS=$PWD ./gradlew :composeApp:jvmTest --tests '*IconAssetsTest*'`.
-- **In-app icons** (`ui/brand`): the seven icons in `packaging/icons/transparent` are rebuilt as live Material shapes, so they can morph into each other while their backdrops spin. There are two loaders:
-  - `BrandLoader` cycles the whole set and is used for long loads.
-  - `CartridgeLoader` keeps the cartridge still while its label shape runs the M3 loading-indicator morphs, for quick loads.
-- **Type:** Google Sans Flex (SIL OFL), a variable font. Interactions animate its weight, width, roundness and slant (`ui/theme/Flex.kt`).
+## Credits
 
-## Layout
+- **Type:** [Google Sans Flex](https://fonts.google.com/specimen/Google+Sans+Flex) (SIL Open Font License).
+- **Platform logos:** [Simple Icons](https://simpleicons.org) (CC0). Logos remain the trademarks of their owners. Systems not covered by Simple Icons use original hardware outlines.
+- **Screenshots** show a demo library; game artwork belongs to its respective owners.
 
-```
-composeApp/src/jvmMain/kotlin/cc/xdan/frontend/
-  model/        Game, Settings, Platform catalogue (40+ systems)
-  data/         JSON stores, ROM scanner, hashing, Steam (VDF), port guessing
-  emulators/    Emulator catalogue + detector, cores + installer, BIOS check, launcher
-  libretro/     FFM bindings (LibretroCore) and the emulation session (video/audio/input/states)
-  input/        SDL3 controller manager, nav events, keyboard bridge
-  scraper/      Providers + scrape queue + asset cache
-  ui/           theme, components, library, bigscreen, xmb, emulation, onboarding, settings
-```
-
-Data lives in `~/Library/Application Support/MaterialFrontend`, `%APPDATA%\MaterialFrontend` or `~/.local/share/material-frontend`. That covers settings, the library, cores, saves, states and media.
-
-## Status and roadmap
-
-**Works now:**
-- All three UI modes.
-- Scanning, scraping and Steam import.
-- External launching and play-time tracking.
-- Software-rendered libretro cores: NES, SNES, GB/GBC/GBA, NDS (melonDS DS), Genesis/SMS/GG/32X/Sega CD, Saturn, PS1 (PCSX ReARMed / Beetle), PCE, arcade (FBNeo), Atari, WonderSwan, NGP, 3DO, MSX and DOS.
-
-**Next:**
-- Vulkan / GLES hardware contexts for cores that don't offer OpenGL.
-- Unlocking RetroAchievements while playing in the built-in player (needs the rcheevos runtime); disc-based systems for RA.
-- Owned-but-not-installed games from GOG Galaxy and the Epic launcher themselves (Heroic covers both today).
-- Amazon Games app (Windows).
-- A direct Xodus integration, once it publishes an interface for other apps.
-
-BIOS files, firmware and keys are never downloaded; you supply your own dumps.
+BIOS files, firmware and keys are never downloaded. You supply your own.
