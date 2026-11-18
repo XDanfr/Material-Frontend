@@ -2,6 +2,11 @@
 
 package cc.xdan.frontend.ui.emulation
 
+import androidx.compose.ui.text.style.TextOverflow
+import cc.xdan.frontend.ui.components.ButtonGlyph
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import cc.xdan.frontend.input.InputMaps
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.CompositionLocalProvider
@@ -129,12 +134,24 @@ fun EmulationScreen(session: EmulationSession) {
     var optionsOpen by remember { mutableStateOf(false) }
     var optFocus by remember { mutableIntStateOf(0) }
     var discPick by remember { mutableIntStateOf(0) }
+    // Controls (remapping) and Players panels.
+    var controlsOpen by remember { mutableStateOf(false) }
+    var playersOpen by remember { mutableStateOf(false) }
+    var subFocus by remember { mutableIntStateOf(0) }
+    var capturing by remember { mutableStateOf(false) }
+    var scopeGame by remember { mutableStateOf(true) }
+    val pads by app.controllers.controllers.collectAsState()
+    val platformName = cc.xdan.frontend.model.Platforms.get(session.platformId).shortName
+    val scopeKey = if (scopeGame) InputMaps.gameKey(session.gameId) else InputMaps.systemKey(session.platformId)
+    val currentMap = InputMaps.resolve(settings, session.platformId, session.gameId)
+    val controlsRows = 1 + InputMaps.remappable.size + 1   // scope, buttons, reset
 
     val actions = buildList {
         add(MenuAction.RESUME); add(MenuAction.SAVE); add(MenuAction.LOAD)
         if (discs != null) add(MenuAction.DISC)
         add(MenuAction.RESET); add(MenuAction.FAST_FORWARD); add(MenuAction.VIDEO); add(MenuAction.INTEGER)
         if (options.isNotEmpty()) add(MenuAction.OPTIONS)
+        add(MenuAction.CONTROLS); add(MenuAction.PLAYERS)
         add(MenuAction.QUIT)
     }
     fun label(a: MenuAction): String = when (a) {
@@ -147,11 +164,13 @@ fun EmulationScreen(session: EmulationSession) {
         MenuAction.VIDEO -> "Video: ${settings.videoFilter.label}"
         MenuAction.INTEGER -> "Integer scaling: ${if (settings.integerScale) "on" else "off"}"
         MenuAction.OPTIONS -> "Core options (${options.size})"
+        MenuAction.CONTROLS -> "Controls"
+        MenuAction.PLAYERS -> "Players (${pads.size} controller${if (pads.size == 1) "" else "s"})"
         MenuAction.QUIT -> "Quit game"
     }
 
     fun setMenu(open: Boolean) {
-        menuOpen = open; focus = 0; optionsOpen = false
+        menuOpen = open; focus = 0; optionsOpen = false; controlsOpen = false; playersOpen = false; capturing = false
         discPick = discs?.index ?: 0
         session.paused = open
         app.controllers.gameMode = !open
@@ -167,6 +186,8 @@ fun EmulationScreen(session: EmulationSession) {
             MenuAction.VIDEO -> app.updateSettings { it.copy(videoFilter = VideoFilter.entries[(it.videoFilter.ordinal + 1) % VideoFilter.entries.size]) }
             MenuAction.INTEGER -> app.updateSettings { it.copy(integerScale = !it.integerScale) }
             MenuAction.OPTIONS -> { optionsOpen = true; optFocus = 0 }
+            MenuAction.CONTROLS -> { controlsOpen = true; subFocus = 1; capturing = false }
+            MenuAction.PLAYERS -> { playersOpen = true; subFocus = 0; capturing = false }
             MenuAction.QUIT -> { setMenu(false); app.stopSession() }
         }
     }
@@ -183,7 +204,37 @@ fun EmulationScreen(session: EmulationSession) {
     LaunchedEffect(session) {
         app.controllers.events.collect { e ->
             if (!menuOpen) { if (e.nav == Nav.GUIDE) setMenu(true); return@collect }
-            if (e.nav == Nav.CONFIRM) { pressPulse++; if (!optionsOpen) delay(PRESS_DELAY_MS) }
+            if (capturing) {
+                // Next button press is the answer. A D-pad press cancels (the D-pad isn't remappable).
+                if (controlsOpen) {
+                    val pad = e.pad
+                    if (pad == null || pad in setOf(Pad.UP, Pad.DOWN, Pad.LEFT, Pad.RIGHT)) { capturing = false; return@collect }
+                    InputMaps.remappable.getOrNull(subFocus - 1)?.let { app.remap(scopeKey, it, pad) }
+                    capturing = false
+                } else if (playersOpen) {
+                    e.instance?.let { app.controllers.assignPort(it, subFocus) }
+                    capturing = false
+                }
+                return@collect
+            }
+            if (e.nav == Nav.CONFIRM) { pressPulse++; if (!optionsOpen && !controlsOpen && !playersOpen) delay(PRESS_DELAY_MS) }
+            if (controlsOpen || playersOpen) {
+                val rows = if (controlsOpen) controlsRows else 4
+                when (e.nav) {
+                    Nav.UP -> subFocus = (subFocus - 1).coerceAtLeast(0)
+                    Nav.DOWN -> subFocus = (subFocus + 1).coerceAtMost(rows - 1)
+                    Nav.LEFT, Nav.RIGHT -> if (controlsOpen && subFocus == 0) scopeGame = !scopeGame
+                    Nav.CONFIRM -> when {
+                        controlsOpen && subFocus == 0 -> scopeGame = !scopeGame
+                        controlsOpen && subFocus == controlsRows - 1 -> app.resetRemap(scopeKey)
+                        else -> capturing = true
+                    }
+                    Nav.BACK -> { controlsOpen = false; playersOpen = false }
+                    Nav.GUIDE, Nav.MENU -> setMenu(false)
+                    else -> {}
+                }
+                return@collect
+            }
             if (optionsOpen) {
                 val o = latestOptions.getOrNull(optFocus)
                 when (e.nav) {
@@ -249,18 +300,25 @@ fun EmulationScreen(session: EmulationSession) {
                         Surface(Modifier.width(420.dp), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
                             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("Paused", style = MaterialTheme.typography.headlineSmallEmphasized.flex(FlexRecipes.paused), modifier = Modifier.padding(start = 8.dp, bottom = 12.dp))
-                                actions.forEachIndexed { i, a -> SheetItem(label(a), i == focus && !optionsOpen) { focus = i; activate(a) } }
+                                actions.forEachIndexed { i, a -> SheetItem(label(a), i == focus && !optionsOpen && !controlsOpen && !playersOpen) { focus = i; activate(a) } }
                             }
                         }
                         val current = actions.getOrNull(focus)
                         when {
                             optionsOpen -> CoreOptionsPanel(options, optionValues, optFocus, onPick = { i, o -> optFocus = i; cycle(o, 1) })
+                            controlsOpen -> ControlsPanel(currentMap, family, subFocus, capturing, scopeGame, platformName,
+                                onPick = { i -> subFocus = i; when (i) { 0 -> scopeGame = !scopeGame; controlsRows - 1 -> app.resetRemap(scopeKey); else -> capturing = true } })
+                            playersOpen -> PlayersPanel(pads.map { it to app.controllers.playerOf(it.instanceId) }, subFocus, capturing,
+                                onPick = { i -> subFocus = i; capturing = true })
                             current == MenuAction.SAVE || current == MenuAction.LOAD -> SlotPreview(session, slot, slotsVersion)
                         }
                     }
                 }
                 HintBar(
-                    if (optionsOpen) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Previous value", Pad.WEST to "Reset all", Pad.EAST to "Back")
+                    if (capturing) listOf(Pad.UP to "Cancel")
+                    else if (controlsOpen) listOf(Pad.SOUTH to "Remap", Pad.LEFT to "This game / all", Pad.EAST to "Back")
+                    else if (playersOpen) listOf(Pad.SOUTH to "Choose controller", Pad.EAST to "Back")
+                    else if (optionsOpen) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Previous value", Pad.WEST to "Reset all", Pad.EAST to "Back")
                     else listOf(Pad.SOUTH to "Select", Pad.LEFT to "Slot / disc", Pad.EAST to "Resume"),
                     family, Modifier.align(Alignment.BottomCenter).padding(24.dp),
                 )
@@ -312,7 +370,64 @@ private fun GameCanvas(img: ImageBitmap, aspect: Float, filter: VideoFilter, int
     }
 }
 
-private enum class MenuAction { RESUME, SAVE, LOAD, DISC, RESET, FAST_FORWARD, VIDEO, INTEGER, OPTIONS, QUIT }
+private enum class MenuAction { RESUME, SAVE, LOAD, DISC, RESET, FAST_FORWARD, VIDEO, INTEGER, OPTIONS, CONTROLS, PLAYERS, QUIT }
+
+@Composable
+private fun PanelRow(focused: Boolean, onClick: () -> Unit, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
+    val bg by animateFloatAsState(if (focused) 1f else 0f, MaterialTheme.motionScheme.fastEffectsSpec())
+    Row(Modifier.fillMaxWidth().pressBounce(LocalPressPulse.current, focused, depth = 0.96f).clip(RoundedCornerShape(16.dp))
+        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = bg)).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content)
+}
+
+/** Remap RetroPad buttons for this game or every game on the system. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ControlsPanel(map: List<Pad>, family: cc.xdan.frontend.input.ControllerFamily, focus: Int, capturing: Boolean, scopeGame: Boolean,
+                          platform: String, onPick: (Int) -> Unit) {
+    Surface(Modifier.width(520.dp).heightIn(max = 640.dp), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Controls", style = MaterialTheme.typography.titleLargeEmphasized, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+            PanelRow(focus == 0, { onPick(0) }) {
+                Text("Applies to", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                Text("‹ ${if (scopeGame) "This game" else "All $platform games"} ›", style = MaterialTheme.typography.labelLarge.reactive(focus == 0) { copy(wght = 720f) })
+            }
+            InputMaps.remappable.forEachIndexed { i, b ->
+                val row = i + 1
+                PanelRow(focus == row, { onPick(row) }) {
+                    Text(b.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.reactive(focus == row) { copy(wght = 620f, rond = 80f) })
+                    if (capturing && focus == row) Text("Press a button…", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
+                    else ButtonGlyph(map[b.id], family)
+                }
+            }
+            PanelRow(focus == InputMaps.remappable.size + 1, { onPick(InputMaps.remappable.size + 1) }) {
+                Text("Reset to default", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+/** Which controller is which player. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PlayersPanel(pads: List<Pair<cc.xdan.frontend.input.ControllerInfo, Int?>>, focus: Int, capturing: Boolean, onPick: (Int) -> Unit) {
+    Surface(Modifier.width(520.dp), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Players", style = MaterialTheme.typography.titleLargeEmphasized, modifier = Modifier.padding(start = 8.dp, bottom = 4.dp))
+            Text("Choose a player, then press any button on the controller that should be them. The keyboard always plays as Player 1.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+            (0 until 4).forEach { port ->
+                val pad = pads.firstOrNull { it.second == port }?.first
+                PanelRow(focus == port, { onPick(port) }) {
+                    Text("Player ${port + 1}", Modifier.width(96.dp), style = MaterialTheme.typography.bodyLarge.reactive(focus == port) { copy(wght = 680f) })
+                    Text(if (capturing && focus == port) "Press a button on a controller…" else pad?.let { "${it.typeLabel} · ${it.name}" } ?: "—",
+                        Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        color = if (capturing && focus == port) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+    }
+}
 
 /** Core options, grouped by category (v2 cores); left/right or click cycles the value. Saved per core. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

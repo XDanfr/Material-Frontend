@@ -28,7 +28,8 @@ enum class ControllerFamily(val label: String) {
 
 data class ControllerInfo(val instanceId: Int, val name: String, val family: ControllerFamily, val typeLabel: String, val vendor: Int, val product: Int, val battery: Int?)
 
-data class NavEvent(val nav: Nav, val pad: Pad?, val repeat: Boolean, val family: ControllerFamily)
+/** [instance] = the SDL controller that pressed it (null for keyboard). */
+data class NavEvent(val nav: Nav, val pad: Pad?, val repeat: Boolean, val family: ControllerFamily, val instance: Int? = null)
 
 /** Snapshot read by the libretro host each frame. */
 class PadState {
@@ -117,11 +118,11 @@ class ControllerManager {
                         val key = id to p
                         if (down && !wasDown) {
                             _activeFamily.value = family
-                            emit(p, false, family)
+                            emit(p, false, family, id)
                             repeat[key] = now + 380_000_000L
                         } else if (down && p in directional) {
                             val at = repeat[key] ?: continue
-                            if (now >= at) { emit(p, true, family); repeat[key] = now + 70_000_000L }
+                            if (now >= at) { emit(p, true, family, id); repeat[key] = now + 70_000_000L }
                         } else if (!down) repeat.remove(key)
                     }
                     prev[id] = state.buttons
@@ -208,7 +209,7 @@ class ControllerManager {
         return Raw(b, lx, ly, SDLGamepad.SDL_GetGamepadAxis(h, SDLGamepad.SDL_GAMEPAD_AXIS_RIGHTX), SDLGamepad.SDL_GetGamepadAxis(h, SDLGamepad.SDL_GAMEPAD_AXIS_RIGHTY), lt, rt)
     }
 
-    private fun emit(p: Pad, repeat: Boolean, family: ControllerFamily) {
+    private fun emit(p: Pad, repeat: Boolean, family: ControllerFamily, instance: Int? = null) {
         val confirmPad = if (nintendoConfirm) Pad.EAST else Pad.SOUTH
         val backPad = if (nintendoConfirm) Pad.SOUTH else Pad.EAST
         val nav = when (p) {
@@ -222,9 +223,9 @@ class ControllerManager {
         if (gameMode && nav != Nav.GUIDE) {
             // In-game: Select+Start acts as Guide for pads without a home button.
             if (!(p == Pad.START && ports.any { it.pressed(Pad.SELECT) })) return
-            _events.tryEmit(NavEvent(Nav.GUIDE, p, false, family)); return
+            _events.tryEmit(NavEvent(Nav.GUIDE, p, false, family, instance)); return
         }
-        _events.tryEmit(NavEvent(nav, p, repeat, family))
+        _events.tryEmit(NavEvent(nav, p, repeat, family, instance))
     }
 
     /** Keyboard bridge (called from the Compose window). Returns true if consumed as navigation. */
@@ -242,6 +243,22 @@ class ControllerManager {
     }
 
     /** Input for emulated port (keyboard is merged into port 0). */
+    /** Registers a controller without SDL (tests). */
+    internal fun attachForTest(instance: Int, port: Int) { portOf[instance] = port }
+
+    /** Player number (0-based) for each connected controller instance. */
+    fun playerOf(instance: Int): Int? = portOf[instance]
+
+    /** Make [instance] player [port]; whoever had that port takes the controller's old one. */
+    fun assignPort(instance: Int, port: Int) {
+        val old = portOf[instance] ?: return
+        if (old == port) return
+        portOf.entries.firstOrNull { it.value == port }?.let { other -> portOf[other.key] = old }
+        portOf[instance] = port
+        ports[old].buttons = 0; ports[port].buttons = 0
+        _controllers.value = _controllers.value.toList()   // nudge observers
+    }
+
     fun portButtons(port: Int): Int = ports[port].buttons or (if (port == 0) keyboard.buttons else 0)
 
     fun rumble(port: Int, low: Int, high: Int, ms: Int) {

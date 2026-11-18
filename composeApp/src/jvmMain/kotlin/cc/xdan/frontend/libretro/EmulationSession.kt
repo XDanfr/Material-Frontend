@@ -38,6 +38,9 @@ class EmulationSession(
     private val controllers: ControllerManager,
     private val systemDir: File,
     private val rewindEnabled: Boolean,
+    /** Which pad button drives each RetroPad id (see InputMaps). */
+    inputMap: List<Pad> = cc.xdan.frontend.input.InputMaps.DEFAULT,
+    val platformId: String = "",
 ) : LibretroHost {
     enum class Status { LOADING, RUNNING, PAUSED, ERROR, STOPPED }
 
@@ -388,8 +391,11 @@ class EmulationSession(
     override fun inputPoll() { for (p in 0 until 4) padBits[p] = controllers.portButtons(p) }
 
     /** RetroPad id -> positional pad button (SNES layout: B=south, A=east, Y=west, X=north). */
-    private val retroMap = arrayOf(Pad.SOUTH, Pad.WEST, Pad.SELECT, Pad.START, Pad.UP, Pad.DOWN, Pad.LEFT, Pad.RIGHT,
-        Pad.EAST, Pad.NORTH, Pad.LB, Pad.RB, Pad.LT, Pad.RT, Pad.L3, Pad.R3)
+    @Volatile private var retroMap: Array<Pad> = inputMap.toTypedArray()
+
+    /** Applies a new mapping immediately (from the in-game Controls panel). */
+    fun setInputMap(map: List<Pad>) { retroMap = map.toTypedArray() }
+
 
     override fun inputState(port: Int, device: Int, index: Int, id: Int): Short {
         if (port !in 0..3) return 0

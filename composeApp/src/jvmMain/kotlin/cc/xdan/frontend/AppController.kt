@@ -1,5 +1,8 @@
 package cc.xdan.frontend
 
+import cc.xdan.frontend.input.Pad
+import cc.xdan.frontend.input.RetroButton
+import cc.xdan.frontend.input.InputMaps
 import cc.xdan.frontend.ui.settings.SettingsSection
 import cc.xdan.frontend.emulators.CoreCatalog
 import cc.xdan.frontend.data.Gamelists
@@ -194,6 +197,17 @@ class AppController {
             runCatching { RomScanner().scan(settings.value.romFolders, emptyMap()).games.map { it.platformId } }.getOrDefault(emptyList())
     }
 
+    /** Remap a RetroPad button for this game or the whole system, applied to the running game at once. */
+    fun remap(scopeKey: String, button: RetroButton, pad: Pad) {
+        updateSettings { InputMaps.withMapping(it, scopeKey, button, pad) }
+        _session.value?.let { it.setInputMap(InputMaps.resolve(settings.value, it.platformId, it.gameId)) }
+    }
+
+    fun resetRemap(scopeKey: String) {
+        updateSettings { InputMaps.cleared(it, scopeKey) }
+        _session.value?.let { it.setInputMap(InputMaps.resolve(settings.value, it.platformId, it.gameId)) }
+    }
+
     /** Detect standalone emulators and add new ones (shared by setup, Settings and controller modes). */
     fun scanEmulators() {
         scope.launch {
@@ -260,7 +274,8 @@ class AppController {
         }
         when (t) {
             is LaunchTarget.Core -> {
-                val session = EmulationSession(t.file, game.path, game.id, controllers, s.biosDir?.let(::File) ?: AppPaths.system, s.rewind)
+                val session = EmulationSession(t.file, game.path, game.id, controllers, s.biosDir?.let(::File) ?: AppPaths.system, s.rewind,
+                    InputMaps.resolve(s, game.platformId, game.id), game.platformId)
                 controllers.gameMode = true
                 sessionStart = System.currentTimeMillis()
                 _session.value = session

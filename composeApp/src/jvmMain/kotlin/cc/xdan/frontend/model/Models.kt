@@ -152,6 +152,8 @@ data class Settings(
     val rewind: Boolean = true,
     /** Run hardware-rendered (OpenGL) cores inside the app; otherwise they launch through RetroArch. */
     val gpuCoresInApp: Boolean = true,
+    /** Button remaps: "system:<id>" / "game:<id>" → (RetroPad id → pad button name). */
+    val inputMaps: Map<String, Map<String, String>> = emptyMap(),
     val autoSaveState: Boolean = true,
     val minimizeOnExternalLaunch: Boolean = true,
     val reduceMotion: Boolean = false,
