@@ -269,7 +269,7 @@ fun HintBar(hints: List<Pair<Pad, String>>, family: ControllerFamily, modifier: 
 
 /** Icon for a system/collection: storefronts, computers, handhelds and home consoles read differently. */
 fun platformIcon(platformId: String): ImageVector = when (platformId) {
-    "steam", "epic", "ea", "xbox-pc", "gog", "ubisoft", "amazon" -> Icons.Outlined.Storefront
+    "steam", "epic", "ea", "xbox-pc", "gog", "ubisoft", "amazon", "battlenet", "itch" -> Icons.Outlined.Storefront
     "pc", "lutris", "dos", "msx" -> Icons.Outlined.Computer
     "gb", "gbc", "gba", "nds", "3ds", "psp", "psvita", "ngp", "wonderswan", "lynx", "gamegear", "switch", "switch2" -> Icons.Outlined.Gamepad
     "arcade", "neogeo" -> Icons.Outlined.VideogameAsset

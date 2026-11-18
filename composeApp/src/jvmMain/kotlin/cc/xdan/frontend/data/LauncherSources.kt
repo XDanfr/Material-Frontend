@@ -38,13 +38,14 @@ object LauncherSources {
     /** Each launcher can be switched on/off on its own (setup and Settings). Steam is handled by [SteamLibrary]. */
     enum class Source(val id: String, val label: String) {
         EPIC("epic", "Epic Games"), EA("ea", "EA app"), XBOX("xbox", "Xbox"), GOG("gog", "GOG Galaxy"), UBISOFT("ubisoft", "Ubisoft Connect"),
-        HEROIC("heroic", "Heroic"), LUTRIS("lutris", "Lutris"), CROSSOVER("crossover", "CrossOver"), PARALLELS("parallels", "Parallels"),
+        HEROIC("heroic", "Heroic"), LUTRIS("lutris", "Lutris"), BATTLENET("battlenet", "Battle.net"), ITCH("itch", "itch.io"), CROSSOVER("crossover", "CrossOver"), PARALLELS("parallels", "Parallels"),
     }
 
     fun scan(source: Source): List<Game> = runCatching {
         when (source) {
             Source.EPIC -> epic(); Source.EA -> ea(); Source.XBOX -> xbox(); Source.GOG -> gogGalaxy(); Source.UBISOFT -> ubisoft()
             Source.HEROIC -> heroic(); Source.LUTRIS -> lutris()
+            Source.BATTLENET -> MoreLaunchers.battleNet(); Source.ITCH -> MoreLaunchers.itch()
             Source.CROSSOVER -> if (HostOs.current == HostOs.WINDOWS) emptyList() else CompatSteam.crossover() + CompatLaunchers.crossover()
             Source.PARALLELS -> if (HostOs.current == HostOs.MAC) CompatSteam.parallels() + CompatLaunchers.parallels() else emptyList()
         }

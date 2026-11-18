@@ -35,7 +35,7 @@ object Platforms {
         Platform(id, name, short, "PC", 2000, emptySet(), emptySet(), thumbnailsName = null, screenScraperId = null, igdbId = 6)
 
     /** Storefront collections whose games run natively on the PC. */
-    val pcStores = setOf(STEAM, PC, "epic", "ea", "xbox-pc", "gog", "ubisoft", "amazon", "lutris")
+    val pcStores = setOf(STEAM, PC, "epic", "ea", "xbox-pc", "gog", "ubisoft", "amazon", "lutris", "battlenet", "itch")
 
     /** Built-in systems. */
     val builtIn: List<Platform> = listOf(
@@ -156,6 +156,8 @@ object Platforms {
         pcStore("ubisoft", "Ubisoft Connect", "Ubisoft"),
         pcStore("amazon", "Amazon Games", "Amazon"),
         pcStore("lutris", "Lutris", "Lutris"),
+        pcStore("battlenet", "Battle.net", "Battle.net"),
+        pcStore("itch", "itch.io", "itch.io"),
     )
 
     /** Systems the user described themselves (unknown emulators: name + file extensions). */
