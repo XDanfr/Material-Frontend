@@ -52,6 +52,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -89,6 +90,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -700,16 +702,22 @@ private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController,
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (Int) -> Unit) {
-    // Focused card is wide, the rest are slim; widths are springs we control (no snap drift).
-    val listState = androidx.compose.foundation.lazy.rememberLazyListState(index)
-    LaunchedEffect(index) { listState.animateScrollToItem(index) }
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().padding(top = 8.dp, bottom = 16.dp)) {
-    val wide = maxWidth * 0.62f; val slim = maxWidth * 0.17f
-    androidx.compose.foundation.lazy.LazyRow(state = listState, userScrollEnabled = false, horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(end = maxWidth - wide), modifier = Modifier.fillMaxSize()) {
-    items(games.size) { i ->
-        val w by androidx.compose.animation.core.animateDpAsState(if (i == index) wide else slim, androidx.compose.animation.core.spring(0.8f, 380f))
-        Box(Modifier.width(w).fillMaxHeight()) {
+    // One spring drives both scroll and widths, so they can't disagree mid-move.
+    val pos by androidx.compose.animation.core.animateFloatAsState(index.toFloat(), androidx.compose.animation.core.spring(0.85f, 300f))
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().padding(top = 8.dp, bottom = 16.dp).then(Modifier.clipToBounds())) {
+    val wide = maxWidth * 0.62f; val slim = maxWidth * 0.17f; val gap = 8.dp
+    fun widthOf(i: Int) = slim + (wide - slim) * (1f - kotlin.math.abs(i - pos)).coerceIn(0f, 1f)
+    // Left edge of item i, minus left edge of the (fractional) current item.
+    fun left(i: Int): androidx.compose.ui.unit.Dp {
+        var x = 0.dp; for (j in 0 until i) x += widthOf(j) + gap
+        val k = pos.toInt(); var base = 0.dp; for (j in 0 until k) base += widthOf(j) + gap
+        return x - (base + (widthOf(k) + gap) * (pos - k))
+    }
+    for (i in games.indices) {
+        val x = left(i); val w = widthOf(i)
+        if (x + w < 0.dp || x > maxWidth) continue
+        androidx.compose.runtime.key(games[i].id) {
+        Box(Modifier.offset(x = x).width(w).fillMaxHeight()) {
         val g = games[i]
         val art by rememberImage(g.assets.hero ?: g.assets.screenshot ?: g.assets.cover, 1600)
         val logo by rememberImage(g.assets.logo, 600)
