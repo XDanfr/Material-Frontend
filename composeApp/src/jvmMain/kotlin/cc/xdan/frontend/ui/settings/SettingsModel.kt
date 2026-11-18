@@ -100,7 +100,10 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
                 ToggleSetting("bsHints", "Show button hints", null, s.bigScreenHints) { v -> set { it.copy(bigScreenHints = v) } },
             )
             UiMode.XMB -> listOf(
-                ToggleSetting("xmbWaves", "Animated waves", "The moving background", s.xmbWaves) { v -> set { it.copy(xmbWaves = v) } },
+                ChoiceSetting("xmbBackground", "Background", "Shifts with the time of day",
+                    cc.xdan.frontend.model.XmbBackground.entries.map { it.label },
+                    cc.xdan.frontend.model.XmbBackground.entries.indexOf(if (s.xmbWaves) s.xmbBackground else cc.xdan.frontend.model.XmbBackground.OFF),
+                    { i -> val b = cc.xdan.frontend.model.XmbBackground.entries[i]; set { it.copy(xmbBackground = b, xmbWaves = b != cc.xdan.frontend.model.XmbBackground.OFF) } }),
                 ToggleSetting("xmbHints", "Show button hints", null, s.xmbHints) { v -> set { it.copy(xmbHints = v) } },
             )
         }

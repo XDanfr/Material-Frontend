@@ -176,5 +176,11 @@ data class Settings(
     val bigScreenClock: Boolean = true,
     val bigScreenHints: Boolean = true,
     val xmbWaves: Boolean = true,
+    val xmbBackground: XmbBackground = XmbBackground.WAVES,
     val xmbHints: Boolean = true,
 )
+
+
+/** XMB backdrops. */
+@Serializable
+enum class XmbBackground(val label: String) { WAVES("Waves"), SHAPES("Shapes"), SQUIGGLES("Squiggles"), MIX("Mix"), OFF("Off") }
