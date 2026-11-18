@@ -32,9 +32,13 @@ object Launchers {
     fun options(game: Game, settings: Settings): List<Pair<String, LaunchTarget>> {
         if (game.kind == GameKind.STEAM) return listOf("steam" to LaunchTarget.Steam(game.path))
         if (game.kind == GameKind.LAUNCHER) {
-            val store = Platforms.get(game.platformId).name
+            val store = when {
+                game.id.startsWith("crossover-") -> "${Platforms.get(game.platformId).name} in CrossOver"
+                game.id.startsWith("parallels-") -> "${Platforms.get(game.platformId).name} in Parallels"
+                else -> Platforms.get(game.platformId).name
+            }
             return if (isUri(game.path)) listOf("launcher" to LaunchTarget.Uri(game.path, store))
-            else File(game.path).let { exe -> listOf("launcher" to LaunchTarget.External(store, listOf(exe.path), exe.parentFile)) }
+            else File(game.path).let { exe -> listOf("launcher" to LaunchTarget.External(store, listOf(exe.path) + splitArgs(game.launchArgs.orEmpty()), exe.parentFile?.takeIf { it.isDirectory })) }
         }
         if (game.kind == GameKind.PORT) {
             val exe = File(game.path)

@@ -59,6 +59,13 @@ data class Game(
     val titleLocked: Boolean = false,
 ) {
     val sortKey: String get() = title.lowercase().removePrefix("the ").trim()
+
+    /** Steam app id for art/metadata: real Steam games, and Windows Steam in CrossOver/Parallels. */
+    val steamAppId: String? get() = when {
+        kind == GameKind.STEAM && !id.startsWith("steam-shortcut") -> path
+        id.startsWith("crossover-steam-") || id.startsWith("parallels-steam-") -> id.substringAfterLast('-')
+        else -> null
+    }
 }
 
 @Serializable

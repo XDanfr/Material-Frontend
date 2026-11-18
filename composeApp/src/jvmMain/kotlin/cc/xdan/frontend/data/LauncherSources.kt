@@ -35,7 +35,7 @@ object LauncherSources {
     private fun JsonElement?.s(): String? = (this as? JsonPrimitive)?.contentOrNull
     private fun JsonElement?.b(): Boolean = (this as? JsonPrimitive)?.booleanOrNull == true
 
-    fun scanAll(): List<Game> = listOf<() -> List<Game>>({ epic() }, ::ea, ::xbox, ::ubisoft, ::gogGalaxy, { heroic() }, ::lutris)
+    fun scanAll(): List<Game> = listOf<() -> List<Game>>({ epic() }, ::ea, ::xbox, ::ubisoft, ::gogGalaxy, { heroic() }, ::lutris, { CompatSteam.scanAll() })
         .flatMap { src -> runCatching { src() }.onFailure { System.err.println("Launcher scan: ${it.message}") }.getOrDefault(emptyList()) }
         .distinctBy { it.id }
 

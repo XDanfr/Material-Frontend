@@ -128,8 +128,8 @@ class SteamGridDb(private val http: HttpClient) : ScraperProvider {
 
     override suspend fun scrape(game: Game, s: ScraperSettings): ScrapeResult? {
         val key = s.steamGridDbKey
-        val realSteam = game.kind == GameKind.STEAM && !game.id.startsWith("steam-shortcut")
-        val target = if (realSteam) "steam/${game.path}" else {
+        val steamId = game.steamAppId
+        val target = if (steamId != null) "steam/$steamId" else {
             val results = get("/search/autocomplete/${game.title.encodeURLPathPart()}", key)?.arr("data")?.map { it.jsonObject }.orEmpty()
             // Prefer an exact (normalised) title match over the first fuzzy hit.
             val k = TitleCleaner.key(game.title)
@@ -203,8 +203,7 @@ class SteamStore(private val http: HttpClient) : ScraperProvider {
     override fun configured(s: ScraperSettings) = true
 
     override suspend fun scrape(game: Game, s: ScraperSettings): ScrapeResult? {
-        if (game.kind != GameKind.STEAM || game.id.startsWith("steam-shortcut")) return null
-        val appId = game.path
+        val appId = game.steamAppId ?: return null
         val cdn = "https://cdn.cloudflare.steamstatic.com/steam/apps/$appId"
         val data = runCatching {
             json.parseToJsonElement(http.get("https://store.steampowered.com/api/appdetails?appids=$appId&l=english").bodyAsText())
