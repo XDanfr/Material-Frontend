@@ -34,6 +34,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -699,26 +700,38 @@ private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController,
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (Int) -> Unit) {
-    val state = rememberCarouselState(initialItem = index) { games.size }
-    LaunchedEffect(index) { state.animateScrollToItem(index) }
-    HorizontalCenteredHeroCarousel(state, Modifier.fillMaxSize().padding(top = 8.dp, bottom = 16.dp), itemSpacing = 8.dp) { i ->
+    // Focused card is wide, the rest are slim; widths are springs we control (no snap drift).
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState(index)
+    LaunchedEffect(index) { listState.animateScrollToItem(index) }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().padding(top = 8.dp, bottom = 16.dp)) {
+    val wide = maxWidth * 0.62f; val slim = maxWidth * 0.17f
+    androidx.compose.foundation.lazy.LazyRow(state = listState, userScrollEnabled = false, horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(end = maxWidth - wide), modifier = Modifier.fillMaxSize()) {
+    items(games.size) { i ->
+        val w by androidx.compose.animation.core.animateDpAsState(if (i == index) wide else slim, androidx.compose.animation.core.spring(0.8f, 380f))
+        Box(Modifier.width(w).fillMaxHeight()) {
         val g = games[i]
         val art by rememberImage(g.assets.hero ?: g.assets.screenshot ?: g.assets.cover, 1600)
         val logo by rememberImage(g.assets.logo, 600)
         val current = i == index
         val shape = RoundedCornerShape(28.dp)
-        Box(Modifier.fillMaxSize().maskClip(shape).then(if (current && focused) Modifier.maskBorder(androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary), shape) else Modifier)
+        Box(Modifier.fillMaxSize().clip(shape).then(if (current && focused) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest).clickable { onPick(i) }) {
             art?.let { Image(it, g.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
-            Column(Modifier.align(Alignment.BottomStart).padding(28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            androidx.compose.animation.AnimatedVisibility(current, Modifier.align(Alignment.BottomStart), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+            Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val l = logo
                 if (l != null) Image(l, g.title, Modifier.heightIn(max = 96.dp).widthIn(max = 380.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
                 else Text(g.title, style = MaterialTheme.typography.headlineMediumEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(listOfNotNull(Platforms.get(g.platformId).name, g.lastPlayed?.let { "Played ${formatAgo(it).lowercase()}" } ?: if (g.favorite) "Favourite" else "New")
                     .joinToString("  ·  "), style = MaterialTheme.typography.titleSmall, color = Color.White.copy(alpha = 0.85f), maxLines = 1)
             }
+            }
         }
+    }
+    }
+    }
     }
 }
 
