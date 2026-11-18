@@ -285,7 +285,7 @@ fun CoresPanel(preselectRecommended: Boolean = false) {
                         AnimatedVisibility(core.id in progress) { LinearWavyProgressIndicator(progress = { progress[core.id] ?: 0f }, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) }
                     }
                 },
-                trailingContent = { if (installed) TextButton(shapes = ButtonDefaults.shapes(), onClick = { app.coreInstaller.uninstall(core.id); refresh++ }) { Text("Remove") } },
+                trailingContent = { if (installed) TextButton(shapes = ButtonDefaults.shapes(), onClick = { app.coreInstaller.uninstall(core.id); refresh++; app.refreshRunnable() }) { Text("Remove") } },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             )
         }

@@ -1,5 +1,6 @@
 package cc.xdan.frontend.ui.components
 
+import androidx.compose.ui.zIndex
 import cc.xdan.frontend.data.HostOs
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
@@ -85,15 +86,36 @@ class MorphShape(private val morph: Morph, private val progress: Float) : Shape 
 @Composable
 fun rememberMorph(from: RoundedPolygon, to: RoundedPolygon) = remember(from, to) { Morph(from.normalized(), to.normalized()) }
 
+/** Systems that can run right now (provided by the app root). ROMs for other systems are greyed out. */
+val LocalRunnable = androidx.compose.runtime.staticCompositionLocalOf<Set<String>?> { null }
+
+/** A ROM whose system has no installed emulator or core (kept so its history survives). */
+@Composable
+fun isUnavailable(game: Game): Boolean {
+    val r = LocalRunnable.current ?: return false
+    return game.kind == cc.xdan.frontend.model.GameKind.ROM && game.platformId !in r
+}
+
+private val greyscale = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) })
+
 /** Box art with a tonal placeholder when no artwork exists. */
 @Composable
 fun CoverArt(game: Game, modifier: Modifier = Modifier, maxDim: Int = 400, preferWide: Boolean = false) {
     val path = if (preferWide) game.assets.hero ?: game.assets.screenshot ?: game.assets.cover else game.assets.cover ?: game.assets.screenshot
     val img by rememberImage(path, maxDim)
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+    val unavailable = isUnavailable(game)
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)
+        .then(if (unavailable) Modifier.graphicsLayer { alpha = 0.55f } else Modifier)) {
         val bmp = img
+        if (unavailable && maxWidth >= 90.dp) {
+            androidx.compose.material3.Surface(Modifier.align(Alignment.TopEnd).padding(8.dp).zIndex(1f), shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.inverseSurface) {
+                Text("No emulator", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.inverseOnSurface, maxLines = 1)
+            }
+        }
         if (bmp != null) {
-            Image(bmp, game.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Image(bmp, game.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, colorFilter = if (unavailable) greyscale else null)
         } else if (maxWidth < 90.dp) {
             // Too small for a title: monogram.
             Text(game.title.split(' ').filter { it.firstOrNull()?.isLetterOrDigit() == true }.take(2).joinToString("") { it.first().uppercase() },

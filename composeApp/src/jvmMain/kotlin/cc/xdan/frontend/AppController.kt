@@ -109,6 +109,7 @@ class AppController {
                     .onFailure { toast("${CoreCatalog.get(id)?.name}: ${it.message}") }
             }
             _coreInstall.value = CoreInstallProgress(ids.size, ids.size, null, 1f)
+            refreshRunnable()
         }
     }
 
@@ -126,7 +127,7 @@ class AppController {
         if (settings.value.seedColor == 0xFF5B5BD6) settings.update { it.copy(seedColor = 0xFF6750A4) }
         controllers.nintendoConfirm = settings.value.nintendoConfirm
         Platforms.setCustom(settings.value.customSystems)
-        scope.launch { settings.state.collect { Platforms.setCustom(it.customSystems) } }
+        scope.launch { settings.state.collect { Platforms.setCustom(it.customSystems); refreshRunnable() } }
         controllers.start()
         // Pick up games added since last time (new ROMs, newly installed Steam/launcher games).
         if (settings.value.onboardingComplete && settings.value.rescanOnStartup) rescan()
@@ -147,28 +148,84 @@ class AppController {
 
     // ---------- Library ----------
 
+    private val _runnable = MutableStateFlow<Set<String>>(emptySet())
+    /** Systems that can run right now; ROMs for other systems stay in the library, greyed out. */
+    val runnable: StateFlow<Set<String>> = _runnable.asStateFlow()
+    fun refreshRunnable() { _runnable.value = runnablePlatforms() }
+
+    /** Something new found on this machine during a rescan, waiting for "add it?". */
+    data class Discovered(val key: String, val name: String, val detail: String, val emulator: DetectedEmulator? = null)
+    private val _discoveries = MutableStateFlow<List<Discovered>>(emptyList())
+    val discoveries: StateFlow<List<Discovered>> = _discoveries.asStateFlow()
+
+    internal fun testDiscoveries(list: List<Discovered>) { _discoveries.value = list }
+
+    /** Adds the chosen discoveries; the rest won't be offered again. */
+    fun resolveDiscoveries(accepted: Set<String>) {
+        val all = _discoveries.value
+        _discoveries.value = emptyList()
+        updateSettings { st ->
+            var s2 = st
+            all.forEach { d ->
+                val yes = d.key in accepted
+                when {
+                    d.emulator != null -> s2 = if (yes) s2.copy(emulators = s2.emulators + d.emulator.toConfig())
+                        else s2.copy(dismissedDiscoveries = s2.dismissedDiscoveries + d.key)
+                    d.key == "launcher:steam" -> s2 = s2.copy(knownLaunchers = s2.knownLaunchers.orEmpty() + "steam", importSteam = yes)
+                    else -> {
+                        val id = d.key.removePrefix("launcher:")
+                        s2 = s2.copy(knownLaunchers = s2.knownLaunchers.orEmpty() + id,
+                            disabledLaunchers = if (yes) s2.disabledLaunchers - id else s2.disabledLaunchers + id,
+                            importLaunchers = s2.importLaunchers || yes)
+                    }
+                }
+            }
+            s2
+        }
+        if (accepted.isNotEmpty()) rescan()
+    }
+
     fun rescan(scrapeAfter: Boolean = true) {
         if (_scan.value.running) return
         scope.launch(Dispatchers.IO) {
             _scan.value = ScanState(true)
             val s = settings.value
             val existing = library.value.associateBy { it.id }
-            // Emulators first: what's installed decides which systems are scanned at all.
-            if (s.emulators.isEmpty() && s.usage != Usage.GAMES) {
+            val found = mutableListOf<Discovered>()
+            // Emulators first: what's installed decides which systems are scanned.
+            if (s.usage != Usage.GAMES) {
                 _scan.value = _scan.value.copy(current = "Looking for emulators")
-                val found = runCatching { detector.detect() }.getOrDefault(emptyList())
-                if (found.isNotEmpty()) updateSettings { st -> st.copy(emulators = st.emulators + found.map { it.toConfig() }) }
+                val have = s.emulators.map { it.path }.toSet()
+                runCatching { detector.detect() }.getOrDefault(emptyList())
+                    .filter { it.path !in have && "emu:${it.path}" !in s.dismissedDiscoveries }.distinctBy { it.path }
+                    .forEach { found += Discovered("emu:${it.path}", it.def.name, "Emulator", it) }
             }
             val allowed = runnablePlatforms()
-            val roms = RomScanner().scan(settings.value.romFolders, existing, allowed) { _scan.value = _scan.value.copy(current = it) }.games
+            refreshRunnable()
+            // New files only for systems that can run; games already in the library stay (greyed out if
+            // their emulator went away) so favourites, play time and edits survive.
+            val roms = RomScanner().scan(settings.value.romFolders, existing, null) { _scan.value = _scan.value.copy(current = it) }.games
+                .filter { it.platformId in allowed || it.id in existing }
             _scan.value = _scan.value.copy(current = "Steam")
             val steamLib = SteamLibrary()
-            val steamGames = if (s.importSteam) runCatching { steamLib.scan() + steamLib.shortcuts() }.getOrDefault(emptyList()) else emptyList()
+            val steamFound = runCatching { steamLib.scan() + steamLib.shortcuts() }.getOrDefault(emptyList())
+            // Launchers with games: ask about ones we haven't asked about before.
+            val perSource = LauncherSources.Source.entries.associate { it.id to LauncherSources.scan(it) }
+            val withGames = perSource.filterValues { it.isNotEmpty() }.keys + listOfNotNull("steam".takeIf { steamFound.isNotEmpty() })
+            val known = s.knownLaunchers ?: withGames.also { k -> updateSettings { st -> st.copy(knownLaunchers = k) } }
+            val newLaunchers = withGames - known
+            newLaunchers.forEach { id ->
+                val label = if (id == "steam") "Steam" else LauncherSources.Source.entries.first { it.id == id }.label
+                val n = if (id == "steam") steamFound.size else perSource[id]!!.size
+                found += Discovered("launcher:$id", label, if (n == 1) "Launcher · 1 game" else "Launcher · $n games")
+            }
+            if (found.isNotEmpty() && s.onboardingComplete) _discoveries.value = found
+            val steamGames = if (s.importSteam && "steam" !in newLaunchers) steamFound else emptyList()
             val steam = steamGames.map { g ->
                 existing[g.id]?.let { prev -> prev.copy(path = g.path, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero ?: g.assets.hero, logo = prev.assets.logo ?: g.assets.logo)) } ?: g
             }
             _scan.value = _scan.value.copy(current = "Other launchers")
-            val launchers = if (s.importLaunchers) runCatching { LauncherSources.scanAll() }.getOrDefault(emptyList()).map { g ->
+            val launchers = if (s.importLaunchers) perSource.filterKeys { it !in s.disabledLaunchers && it !in newLaunchers }.values.flatten().distinctBy { it.id }.map { g ->
                 existing[g.id]?.let { prev -> prev.copy(path = g.path, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero ?: g.assets.hero)) } ?: g
             } else emptyList()
             val imported = if (s.importGamelists) Gamelists.apply(roms, s.romFolders) else roms

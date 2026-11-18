@@ -71,7 +71,8 @@ fun App(app: AppController, showSplash: Boolean = true) {
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { app.toasts.collect { snackbar.showSnackbar(it) } }
 
-    CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides seed) {
+    val runnable by app.runnable.collectAsState()
+    CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides seed, cc.xdan.frontend.ui.components.LocalRunnable provides runnable) {
         MaterialFrontendTheme(settings, seed.value) {
             CompositionLocalProvider(LocalSplashActive provides splash) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -121,6 +122,9 @@ fun App(app: AppController, showSplash: Boolean = true) {
                         exit = fadeOut(MaterialTheme.motionScheme.slowEffectsSpec())) {
                         lastLaunch.value?.let { LaunchingOverlay(it) }
                     }
+                    val discoveries by app.discoveries.collectAsState()
+                    if (discoveries.isNotEmpty() && settings.onboardingComplete && session == null && external == null)
+                        cc.xdan.frontend.ui.components.DiscoveryDialog(app, discoveries)
                     SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = if (mode == UiMode.LIST) 24.dp else 96.dp))
 
                     // Launch animation over the (already composing) app; fades and lifts away when done.

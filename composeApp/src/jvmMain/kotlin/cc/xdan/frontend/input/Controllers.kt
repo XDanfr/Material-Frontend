@@ -55,6 +55,12 @@ class ControllerManager {
     private val _events = MutableSharedFlow<NavEvent>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val events: SharedFlow<NavEvent> = _events.asSharedFlow()
 
+    /** While a modal dialog is up, navigation goes only to [modalEvents] (screens underneath don't react). */
+    @Volatile var modal = false
+    private val _modalEvents = MutableSharedFlow<NavEvent>(extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val modalEvents: SharedFlow<NavEvent> = _modalEvents.asSharedFlow()
+    private fun send(e: NavEvent) { if (modal) _modalEvents.tryEmit(e) else _events.tryEmit(e) }
+
     private val _connected = MutableSharedFlow<ControllerInfo>(extraBufferCapacity = 4, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     /** Fires when a new pad is plugged in (used for auto Big Screen). */
     val connected: SharedFlow<ControllerInfo> = _connected.asSharedFlow()
@@ -225,7 +231,7 @@ class ControllerManager {
             if (!(p == Pad.START && ports.any { it.pressed(Pad.SELECT) })) return
             _events.tryEmit(NavEvent(Nav.GUIDE, p, false, family, instance)); return
         }
-        _events.tryEmit(NavEvent(nav, p, repeat, family, instance))
+        send(NavEvent(nav, p, repeat, family, instance))
     }
 
     /** Keyboard bridge (called from the Compose window). Returns true if consumed as navigation. */
@@ -236,7 +242,7 @@ class ControllerManager {
         }
         if (down && nav != null && (!gameMode || nav == Nav.GUIDE)) {
             _activeFamily.value = ControllerFamily.KEYBOARD
-            _events.tryEmit(NavEvent(nav, pad, false, ControllerFamily.KEYBOARD))
+            send(NavEvent(nav, pad, false, ControllerFamily.KEYBOARD))
             return true
         }
         return false
