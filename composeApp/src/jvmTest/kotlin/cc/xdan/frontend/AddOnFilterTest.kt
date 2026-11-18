@@ -21,6 +21,14 @@ class AddOnFilterTest {
         assertFalse(AddOns.isAddOn("Super Mario Bros. (World).nes", "nes"))
     }
 
+    @Test fun keepsMergedDumps() {
+        assertFalse(AddOns.isAddOn("Splatoon Raiders [0100ABCD12340000][v131072].nup", "switch2"))
+        assertFalse(AddOns.isAddOn("Splatoon Raiders [0100ABCD12340800].nup", "switch2"))
+        assertFalse(AddOns.isAddOn("Zelda TOTK [Base + Update + DLC].xci", "switch"))
+        assertFalse(AddOns.isAddOn("Mario Wonder (Game+Upd).nsz", "switch"))
+        assertTrue(AddOns.isAddOn("Mario Wonder (Update).nsz", "switch"))
+    }
+
     @Test fun switchRulesStayOnSwitch() {
         assertFalse(AddOns.isAddOn("Some Game [0100000000010800].iso", "ps2"))
         assertFalse(AddOns.isAddOn("Some Game [v131072].iso", "gc"))
