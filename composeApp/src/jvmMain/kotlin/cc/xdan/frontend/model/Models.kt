@@ -142,6 +142,8 @@ data class Settings(
     val defaultMode: UiMode = UiMode.LIST,
     val bigScreenOnController: Boolean = true,
     val startFullscreen: Boolean = false,
+    /** Pause the built-in player while another app is in front (controllers are ignored then anyway). */
+    val pauseInBackground: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Brand purple (M3 baseline primary). */
     val seedColor: Long = 0xFF6750A4,

@@ -70,8 +70,8 @@ fun main(args: Array<String>) {
             // Ignore controllers while another window is in front (a Steam game, a browser…).
             DisposableEffect(window) {
                 val l = object : java.awt.event.WindowFocusListener {
-                    override fun windowGainedFocus(e: java.awt.event.WindowEvent?) { app.controllers.windowFocused = true }
-                    override fun windowLostFocus(e: java.awt.event.WindowEvent?) { app.controllers.windowFocused = false }
+                    override fun windowGainedFocus(e: java.awt.event.WindowEvent?) { app.onWindowFocus(true) }
+                    override fun windowLostFocus(e: java.awt.event.WindowEvent?) { app.onWindowFocus(false) }
                 }
                 window.addWindowFocusListener(l)
                 app.controllers.windowFocused = window.isFocused

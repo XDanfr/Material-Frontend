@@ -522,6 +522,14 @@ class AppController {
         !(it == Power.BIGSCREEN && mode.value == UiMode.BIGSCREEN) && !(it == Power.XMB && mode.value == UiMode.XMB)
     }
     init { controllers.allowGuideUnfocused = { external.value != null } }
+    @Volatile private var autoPaused = false
+    /** Window focus changes: controllers stop/start, and the built-in player pauses while in the background. */
+    fun onWindowFocus(focused: Boolean) {
+        controllers.windowFocused = focused
+        val s = _session.value ?: run { autoPaused = false; return }
+        if (!focused && settings.value.pauseInBackground && !s.paused) { s.paused = true; autoPaused = true }
+        else if (focused && autoPaused) { s.paused = false; autoPaused = false }
+    }
     val exitRequests = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     fun power(p: Power) {
         when (p) {
