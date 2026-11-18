@@ -8,8 +8,10 @@ A Material 3 Expressive emulation frontend for Windows, macOS and Linux, built w
 - **Big Screen:** controller-first shelves, a game page, an on-screen-keyboard search and a quick menu.
 - **XMB:** a cross-media-bar view with category morphs and tonal waves.
 - **In-app play:** libretro cores run inside the window through the Java FFM API, with save states and thumbnails, rewind, fast-forward, a CRT/LCD filter, SRAM autosave and rumble.
+  - **GPU cores (new):** cores that need OpenGL (N64, PSP, Dreamcast, PS1 HW) get an off-screen OpenGL context (CGL on macOS, GLFW on Windows/Linux) and their frames are read back into the same pipeline. RetroArch stays available under "Launch with". GLES/Vulkan-only cores aren't supported yet.
   - **Core options:** legacy, v1 and v2 (with categories) appear in the in-game menu and are saved per core.
   - **Disc swapping:** multi-disc games can change disc from the in-game menu.
+  - **Controls and players:** remap RetroPad buttons for one game or a whole system from the in-game menu (applies instantly), and choose which controller is which player.
 - **Standalone emulators:** detected and launched with per-emulator argument templates. This includes RetroArch, DuckStation, PCSX2, RPCS3, shadPS4, Vita3K, PPSSPP, Dolphin, Cemu, Ryujinx/Ryubing, Citron, Eden, Sudachi, suyu, Torzu, yuzu, Eglantine (Switch 2), Azahar, Lime3DS, melonDS, xemu, Xenia/Xenia Canary (including the Linux AppImage), Flycast, Redream, mGBA, Mesen, ares, RMG, simple64 and MAME. You can also add your own emulator, for example for PS5 when one exists.
 - **Steam import:** reads `libraryfolders.vdf`, the app manifests and non-Steam shortcuts (`shortcuts.vdf`), and uses the local library art and custom grid art.
 - **Other launchers:**
@@ -28,15 +30,10 @@ A Material 3 Expressive emulation frontend for Windows, macOS and Linux, built w
   - libretro-thumbnails (no key) for retro box art
   - Steam store and CDN for Steam games
 - **Controllers:** SDL3 through LWJGL, with hot-plug. It detects Xbox, PlayStation, Nintendo, Steam and 8BitDo pads, shows matching button glyphs, has an option for Nintendo-style confirm, and maps pads to 4 players.
-- **Onboarding:**
-  1. Theme
-  2. Controller check
-  3. Emulator scan
-  4. Core installer (libretro buildbot)
-  5. Game folders and Steam
-  6. BIOS check
-  7. Scraper keys
-  8. First scan
+- **Setup:** one question per screen, centred cards, the same Back/Continue buttons throughout; controller, keyboard or mouse. It continues from the launch animation, asks what you'll use the app for (PC games, emulation or both) and only asks what's relevant: theme (Library, Big Screen or XMB, with previews), light or dark, PC libraries, game folders, emulators, cores, BIOS (only for your systems), artwork. Progress is saved, so it resumes where you left off, including after switching to fullscreen.
+- **Settings in every mode:** one settings list, rendered as the Settings screen (Library view), a Settings tab (Big Screen) and the Settings category (XMB); a change anywhere shows everywhere. Each mode also has its own section (layout and sort; clock and hints; waves and hints). Accent colours are Pixel-style chips showing each seed's primary, secondary and tertiary colours.
+- **Steam in CrossOver and Parallels:** Windows Steam games in CrossOver bottles (macOS and Linux) and in Parallels VMs with shared drives are listed and launched through CrossOver's `wine` / `prlctl`.
+- **Start-up rescan:** new games are picked up every launch (can be turned off).
 
 ## Build and run
 
@@ -110,8 +107,7 @@ Data lives in `~/Library/Application Support/MaterialFrontend`, `%APPDATA%\Mater
 - Software-rendered libretro cores: NES, SNES, GB/GBC/GBA, NDS (melonDS DS), Genesis/SMS/GG/32X/Sega CD, Saturn, PS1 (PCSX ReARMed / Beetle), PCE, arcade (FBNeo), Atari, WonderSwan, NGP, 3DO, MSX and DOS.
 
 **Next:**
-- **In-app hardware rendering** (`RETRO_ENVIRONMENT_SET_HW_RENDER` through an LWJGL OpenGL context with readback) for N64, PSP, Dreamcast and PS1 HW. Until then these cores launch through RetroArch when it's installed, or through the standalone emulator.
-- Per-game remapping and input profiles.
+- Vulkan / GLES hardware contexts for cores that don't offer OpenGL.
 - RetroAchievements.
 - Battle.net, itch.io and Amazon Games app (Windows) sources.
 - A direct Xodus integration, once it publishes an interface for other apps.
