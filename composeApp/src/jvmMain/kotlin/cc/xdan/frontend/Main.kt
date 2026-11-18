@@ -75,6 +75,14 @@ private fun isFullscreenShortcut(e: KeyEvent): Boolean =
  * Keyboard → controller bridge. In list mode the keyboard belongs to normal Compose focus; in
  * Big Screen / XMB / in-game it drives the same navigation events as a gamepad.
  */
+/** The character a key types; falls back to the key code when AWT gives no char on key-down. */
+private fun typedChar(e: KeyEvent): Char? {
+    val c = e.utf16CodePoint.toChar()
+    if (c.isLetterOrDigit() || c in " -:'&!.?") return c
+    val code = e.key.keyCode.toInt()
+    return when (code) { in 65..90 -> (code + 32).toChar(); in 48..57 -> code.toChar(); 45 -> '-'; else -> null }
+}
+
 internal fun handleKey(app: AppController, e: KeyEvent): Boolean {
     val down = e.type == KeyEventType.KeyDown
     if (down && isFullscreenShortcut(e)) { app.fullscreen.value = !app.fullscreen.value; return true }
@@ -96,12 +104,16 @@ internal fun handleKey(app: AppController, e: KeyEvent): Boolean {
     }
     val inGame = app.session.value != null
     if (!inGame && app.mode.value == UiMode.LIST) return false
-    app.textInput?.takeIf { !inGame && !e.isCtrlPressed && !e.isMetaPressed }?.let { type ->
+    // Search owns the keyboard: Escape closes, Enter finishes, Backspace deletes, everything else types.
+    app.textInput?.takeIf { !inGame }?.let { type ->
+        if (e.isCtrlPressed || e.isMetaPressed) return false
+        if (!down) return true
         val ch = when (e.key) {
-            Key.Backspace -> '\b'; Key.Enter -> '\n'
-            else -> e.utf16CodePoint.toChar().takeIf { it.isLetterOrDigit() || it == ' ' || it in "-:'&!.?" }
+            Key.Escape -> '\u001b'; Key.Backspace -> '\b'; Key.Enter, Key.NumPadEnter -> '\n'; Key.Spacebar -> ' '
+            else -> typedChar(e)
         }
-        if (ch != null) { if (down) type(ch); return true }
+        ch?.let(type)
+        return true
     }
     if (e.isCtrlPressed || e.isMetaPressed) return false
 

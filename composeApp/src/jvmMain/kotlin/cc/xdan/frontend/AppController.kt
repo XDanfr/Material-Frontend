@@ -313,6 +313,9 @@ class AppController {
     }
 
     /** Adds/removes a game from the chosen spotlight list (and switches the spotlight to chosen games when adding). */
+    fun toggleSpotlightHidden(id: String) = updateSettings { s -> s.copy(spotlightHidden = if (id in s.spotlightHidden) s.spotlightHidden - id else s.spotlightHidden + id) }
+    /** Not installed, or a ROM with no core/emulator for its system. */
+    fun isUnplayable(g: Game): Boolean = !g.installed || (g.kind == cc.xdan.frontend.model.GameKind.ROM && g.platformId !in runnable.value)
     fun toggleSpotlight(id: String) = updateSettings { s ->
         if (id in s.spotlightGames) s.copy(spotlightGames = s.spotlightGames - id)
         else s.copy(spotlightGames = s.spotlightGames + id, spotlight = cc.xdan.frontend.model.SpotlightMode.CHOSEN)

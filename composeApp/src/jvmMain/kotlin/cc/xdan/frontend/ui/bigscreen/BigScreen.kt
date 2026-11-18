@@ -134,6 +134,8 @@ private sealed interface Overlay {
     data class Manage(val game: Game, val focus: Int = 0, val armedRemove: Boolean = false) : Overlay
     data class Rename(val game: Game) : Overlay
     data object Search : Overlay
+    /** "This title isn't installed. Add anyway?" */
+    data class ConfirmSpotlight(val game: Game, val message: String, val focus: Int = 0) : Overlay
 }
 
 fun buildShelves(games: List<Game>): List<Shelf> {
@@ -161,11 +163,13 @@ fun BigScreen() {
     var tab by remember { mutableStateOf(Tab.HOME) }
     // Home: row -1 is the spotlight carousel; Up from the top of any tab focuses the tab bar.
     val spotSeed = remember { System.nanoTime() }  // Random: new picks each launch, stable while open
-    val featured = remember(games, settings.spotlight, settings.spotlightGames) { featuredGames(games, settings.spotlight, settings.spotlightGames, spotSeed) }
+    val featured = remember(games, settings.spotlight, settings.spotlightGames, settings.spotlightHidden) { featuredGames(games, settings.spotlight, settings.spotlightGames, spotSeed, settings.spotlightHidden) }
     var row by remember { mutableIntStateOf(-1) }
     var spotIdx by remember { mutableIntStateOf(0) }
     var barFocus by remember { mutableStateOf(false) }
     if (row == -1 && featured.isEmpty()) row = 0
+    // Shelves can shrink (a game installed/removed, favourites changed): keep focus on a real tile.
+    if (row >= shelves.size) row = if (shelves.isEmpty()) -1 else shelves.lastIndex
     val cols = remember { mutableStateMapOf<Int, Int>() }
     // Library tab state
     val platforms = remember(games) {
@@ -183,7 +187,7 @@ fun BigScreen() {
     var searchResultsFocus by remember { mutableStateOf<Game?>(null) }
 
     val focused: Game? = when (tab) {
-        Tab.HOME -> if (row == -1) featured.getOrNull(spotIdx) else shelves.getOrNull(row)?.games?.getOrNull(cols[row] ?: 0)
+        Tab.HOME -> if (row == -1) featured.getOrNull(spotIdx) else shelves.getOrNull(row)?.games?.let { it.getOrNull((cols[row] ?: 0).coerceIn(0, (it.size - 1).coerceAtLeast(0))) }
         Tab.LIBRARY -> libGames.getOrNull(gridIdx)
         Tab.SETTINGS -> null
     }
@@ -254,7 +258,7 @@ fun BigScreen() {
                     else -> {}
                 }
                 is Overlay.Manage -> {
-                    val n = manageItems(top.game).size
+                    val n = manageItems(top.game, settings).size
                     when (e.nav) {
                         Nav.UP -> overlays[overlays.lastIndex] = top.copy(focus = (top.focus - 1).coerceAtLeast(0), armedRemove = false)
                         Nav.DOWN -> overlays[overlays.lastIndex] = top.copy(focus = (top.focus + 1).coerceAtMost(n - 1), armedRemove = false)
@@ -264,6 +268,12 @@ fun BigScreen() {
                     }
                 }
                 is Overlay.Rename, Overlay.Search -> { /* handled by their own overlay */ }
+                is Overlay.ConfirmSpotlight -> when (e.nav) {
+                    Nav.UP, Nav.DOWN -> overlays[overlays.lastIndex] = top.copy(focus = 1 - top.focus)
+                    Nav.CONFIRM -> { if (top.focus == 0) app.toggleSpotlight(top.game.id); overlays.removeLast(); overlays.lastOrNull()?.let { if (it is Overlay.Manage) overlays.removeLast() } }
+                    Nav.BACK -> overlays.removeLast()
+                    else -> {}
+                }
                 null -> if (barFocus) when (e.nav) {
                     Nav.LEFT, Nav.PREV_TAB -> tab = Tab.entries[(tab.ordinal + Tab.entries.size - 1) % Tab.entries.size]
                     Nav.RIGHT, Nav.NEXT_TAB -> tab = Tab.entries[(tab.ordinal + 1) % Tab.entries.size]
@@ -337,7 +347,7 @@ fun BigScreen() {
                 is Overlay.Details -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Favourite", Pad.EAST to "Back")
                 is Overlay.Manage -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Back")
                 is Overlay.Rename -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Save", Pad.EAST to "Cancel")
-                is Overlay.Menu, is Overlay.LaunchWith -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
+                is Overlay.Menu, is Overlay.LaunchWith, is Overlay.ConfirmSpotlight -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
                 Overlay.Search -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Delete", Pad.START to "Results", Pad.EAST to "Back")
                 null -> if (barFocus) listOf(Pad.LEFT to "Switch tab", Pad.DOWN to "Back to content")
                         else if (tab == Tab.SETTINGS) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Value", Pad.LB to "", Pad.RB to "Tabs", Pad.EAST to "Home")
@@ -355,8 +365,11 @@ fun BigScreen() {
                     onMore = { overlays += Overlay.Manage(games.firstOrNull { it.id == o.game.id } ?: o.game) })
                 is Overlay.LaunchWith -> LaunchWithOverlay(o.game, o.focus) { k -> overlays.clear(); app.play(o.game, k) }
                 is Overlay.Menu -> MenuOverlay(menuItems.map { it.first }, o.focus) { i -> menuItems[i].second(); overlays.clear() }
-                is Overlay.Manage -> MenuOverlay(manageItems(o.game, o.game.id in settings.spotlightGames).map { if (it == "Remove from library" && o.armedRemove) "Press again to remove" else it }, o.focus, title = o.game.title) { i ->
+                is Overlay.Manage -> MenuOverlay(manageItems(o.game, settings).map { if (it == "Remove from library" && o.armedRemove) "Press again to remove" else it }, o.focus, title = o.game.title) { i ->
                     overlays[overlays.indexOf(o)] = o.copy(focus = i); manageAction(o.copy(focus = i), app, overlays)
+                }
+                is Overlay.ConfirmSpotlight -> MenuOverlay(listOf("Add anyway", "Cancel"), o.focus, title = o.message) { i ->
+                    if (i == 0) app.toggleSpotlight(o.game.id); overlays.remove(o); overlays.lastOrNull()?.let { if (it is Overlay.Manage) overlays.remove(it) }
                 }
                 is Overlay.Rename -> RenameOverlay(o.game, onDone = { t ->
                     if (o.game.id == NAME_ID) app.updateSettings { it.copy(userName = t.trim().take(32)) }
@@ -652,8 +665,9 @@ private fun SearchOverlay(games: List<Game>, onClose: () -> Unit, onOpen: (Game)
     fun toResults() { if (resultsNow.isNotEmpty()) { inResults = true; ri = 0 } }
     fun press(k: String) { keyPulse++; when (k) { "SPACE" -> query = "$query "; "⌫" -> query = query.dropLast(1); "RESULTS" -> toResults(); else -> query += k.lowercase() } }
     // A physical keyboard types straight into the query.
-    androidx.compose.runtime.DisposableEffect(Unit) {
-        app.textInput = { c -> when (c) { '\b' -> query = query.dropLast(1); '\n' -> toResults(); else -> { query += c.lowercaseChar(); inResults = false } } }
+    // While on the keyboard, the physical keyboard only types (Esc closes, Enter goes to results); in results it navigates.
+    androidx.compose.runtime.DisposableEffect(inResults) {
+        app.textInput = if (inResults) null else { c -> when (c) { '\u001b' -> onClose(); '\b' -> query = query.dropLast(1); '\n' -> toResults(); else -> query += c.lowercaseChar() } }
         onDispose { app.textInput = null }
     }
     LaunchedEffect(Unit) {
@@ -728,15 +742,16 @@ private const val HIDDEN = "__hidden"
 
 /** Spotlight picks: what you're playing, favourites, then new arrivals — preferring games with wide art. */
 internal fun featuredGames(games: List<Game>, mode: cc.xdan.frontend.model.SpotlightMode = cc.xdan.frontend.model.SpotlightMode.RECENT,
-                           chosen: List<String> = emptyList(), seed: Long = 0): List<Game> {
-    val visible = games.filter { !it.hidden && it.installed }
+                           chosen: List<String> = emptyList(), seed: Long = 0, excluded: Set<String> = emptySet()): List<Game> {
+    val visible = games.filter { !it.hidden && it.installed && it.id !in excluded }
     val recent = visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed }
     val fallback = (recent + visible.filter { it.favorite } + visible.sortedByDescending { it.addedAt }).distinctBy { it.id }
     val picked = when (mode) {
         cc.xdan.frontend.model.SpotlightMode.RECENT -> recent
         cc.xdan.frontend.model.SpotlightMode.FAVOURITES -> visible.filter { it.favorite }.sortedBy { it.sortKey }
         cc.xdan.frontend.model.SpotlightMode.RANDOM -> visible.shuffled(kotlin.random.Random(seed))
-        cc.xdan.frontend.model.SpotlightMode.CHOSEN -> { val byId = visible.associateBy { it.id }; chosen.mapNotNull { byId[it] } }
+        // Chosen titles show even if not installed / no emulator (the user confirmed that when adding).
+        cc.xdan.frontend.model.SpotlightMode.CHOSEN -> { val byId = games.filter { !it.hidden }.associateBy { it.id }; chosen.mapNotNull { byId[it] } }
     }
     if (mode == cc.xdan.frontend.model.SpotlightMode.CHOSEN && picked.isNotEmpty()) return picked
     val ordered = picked.ifEmpty { fallback }
@@ -744,8 +759,10 @@ internal fun featuredGames(games: List<Game>, mode: cc.xdan.frontend.model.Spotl
     return (wide.ifEmpty { ordered }).take(8)
 }
 
-private fun manageItems(g: Game, inSpotlight: Boolean = false) = listOf(if (g.hidden) "Show in library" else "Hide from library", "Rename", "Remove from library",
-    if (inSpotlight) "Remove from spotlight" else "Add to spotlight")
+private fun manageItems(g: Game, s: cc.xdan.frontend.model.Settings) = listOf(if (g.hidden) "Show in library" else "Hide from library", "Rename", "Remove from library",
+    // Chosen mode: you pick the list. Other modes: you can only keep a game out.
+    if (s.spotlight == cc.xdan.frontend.model.SpotlightMode.CHOSEN) { if (g.id in s.spotlightGames) "Remove from spotlight" else "Add to spotlight" }
+    else { if (g.id in s.spotlightHidden) "Show in spotlight" else "Hide from spotlight" })
 
 private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController, overlays: MutableList<Overlay>) {
     when (o.focus) {
@@ -753,7 +770,13 @@ private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController,
         1 -> overlays += Overlay.Rename(o.game)
         2 -> if (o.armedRemove) { app.removeGames(setOf(o.game.id)); overlays.clear() }
              else overlays.indexOfFirst { it is Overlay.Manage }.takeIf { it >= 0 }?.let { overlays[it] = o.copy(armedRemove = true) }
-        3 -> { app.toggleSpotlight(o.game.id); overlays.removeAt(overlays.lastIndex) }
+        3 -> {
+            val s = app.settings.value
+            if (s.spotlight != cc.xdan.frontend.model.SpotlightMode.CHOSEN) { app.toggleSpotlightHidden(o.game.id); overlays.removeAt(overlays.lastIndex) }
+            else if (o.game.id !in s.spotlightGames && app.isUnplayable(o.game))
+                overlays += Overlay.ConfirmSpotlight(o.game, if (!o.game.installed) "This title isn't installed. Add anyway?" else "There's no emulator for this title. Add anyway?")
+            else { app.toggleSpotlight(o.game.id); overlays.removeAt(overlays.lastIndex) }
+        }
     }
 }
 
