@@ -40,9 +40,11 @@ kotlin {
             implementation(libs.materialKolor)
             implementation(libs.lwjgl.core)
             implementation(libs.lwjgl.sdl)
+            // OpenGL contexts for hardware-rendered libretro cores (CGL on macOS, GLFW elsewhere).
+            implementation(libs.lwjgl.opengl)
+            implementation(libs.lwjgl.glfw)
             lwjglNatives.forEach { n ->
-                runtimeOnly("org.lwjgl:lwjgl:${libs.versions.lwjgl.get()}:$n")
-                runtimeOnly("org.lwjgl:lwjgl-sdl:${libs.versions.lwjgl.get()}:$n")
+                listOf("lwjgl", "lwjgl-sdl", "lwjgl-opengl", "lwjgl-glfw").forEach { m -> runtimeOnly("org.lwjgl:$m:${libs.versions.lwjgl.get()}:$n") }
             }
         }
         jvmTest.dependencies {

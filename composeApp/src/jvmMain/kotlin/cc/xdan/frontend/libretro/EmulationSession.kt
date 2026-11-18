@@ -54,6 +54,33 @@ class EmulationSession(
     @Volatile var paused = false
 
     private lateinit var core: LibretroCore
+
+    // ---- Hardware rendering (OpenGL) ----
+    private var hwRequest: HwRenderRequest? = null
+    private var gl: GlRenderer? = null
+    override fun hwFramebuffer(): Long = gl?.fbo?.toLong() ?: 0L
+    override fun hwProcAddress(name: String): Long = gl?.procAddress(name) ?: 0L
+
+    /** Calls a void(void) function pointer the core gave us (context_reset / context_destroy). */
+    private fun callVoid(fn: MemorySegment) {
+        if (fn.address() == 0L) return
+        java.lang.foreign.Linker.nativeLinker().downcallHandle(fn, java.lang.foreign.FunctionDescriptor.ofVoid()).invoke()
+    }
+
+    /** Creates the GL context + framebuffer after load_game, then lets the core set up its GL state. */
+    private fun startHwRender(a: AvInfo) {
+        val req = hwRequest ?: return
+        val r = runCatching { GlRenderer.create(req.coreProfile) }.getOrElse { throw IllegalStateException("Couldn't start OpenGL for this core: ${it.message}. Try “Launch with → RetroArch”.") }
+        gl = r
+        r.ensureFramebuffer(a.maxWidth.coerceAtLeast(a.baseWidth), a.maxHeight.coerceAtLeast(a.baseHeight), req.depth, req.stencil)
+        callVoid(req.contextReset)
+    }
+
+    private fun stopHwRender() {
+        val req = hwRequest ?: return
+        runCatching { callVoid(req.contextDestroy) }
+        gl?.destroy(); gl = null
+    }
     private var pixelFormat = Retro.PIXEL_0RGB1555
     private var av: AvInfo? = null
     private var audio: SourceDataLine? = null
@@ -163,6 +190,7 @@ class EmulationSession(
             val (path, data) = prepareContent(sys)
             if (!core.loadGame(path, data)) error("${sys.libraryName} couldn't load this game")
             av = core.avInfo().also { applyAv(it) }
+            startHwRender(av!!)
             refreshDiscs()
             (0 until 4).forEach { core.setPortDevice(it, Retro.DEVICE_JOYPAD) }
             loadSram()
@@ -203,6 +231,7 @@ class EmulationSession(
             // Drain pending commands (e.g. the auto-save requested on exit).
             while (true) { val c = commands.poll() ?: break; runCatching(c).onFailure { it.printStackTrace() } }
             saveSram()
+            stopHwRender()
             core.unloadGame()
             core.deinit()
             _status.value = Status.STOPPED
@@ -292,6 +321,7 @@ class EmulationSession(
 
     // ---- Video ----
     override fun videoRefresh(data: MemorySegment, width: Int, height: Int, pitch: Long) {
+        if (data.address() == HwRenderRequest.FRAME_BUFFER_VALID) { hwFrame(width, height); return }
         if (data.address() == 0L || width <= 0 || height <= 0) return  // duped frame
         val size = width * height * 4
         if (back.size != size) back = ByteArray(size)
@@ -323,6 +353,20 @@ class EmulationSession(
         synchronized(frameLock) {
             val t = front; front = back; back = t
             frame = Frame(front, width, height)
+            frameCounter++
+        }
+    }
+
+    /** A hardware-rendered frame is ready in the framebuffer: read it back into the normal pipeline. */
+    private fun hwFrame(width: Int, height: Int) {
+        val r = gl ?: return
+        val req = hwRequest ?: return
+        val w = width.coerceIn(1, r.width); val h = height.coerceIn(1, r.height)
+        if (back.size != w * h * 4) back = ByteArray(w * h * 4)
+        r.readFrame(w, h, req.bottomLeftOrigin, back)
+        synchronized(frameLock) {
+            val t = front; front = back; back = t
+            frame = Frame(front, w, h)
             frameCounter++
         }
     }
@@ -423,11 +467,13 @@ class EmulationSession(
             }
             Retro.ENV_SET_SYSTEM_AV_INFO -> {
                 val a = LibretroCore.readAv(data.reinterpret(40)); av = a; applyAv(a)
+                gl?.let { r -> hwRequest?.let { q -> r.ensureFramebuffer(maxOf(r.width, a.maxWidth), maxOf(r.height, a.maxHeight), q.depth, q.stencil) } }
                 audio?.runCatching { stop(); close() }; openAudio(a.sampleRate); true
             }
             Retro.ENV_SET_MESSAGE -> { LibretroCore.cstr(d.get(ValueLayout.ADDRESS, 0))?.let { messages.tryEmit(it) }; true }
             Retro.ENV_SHUTDOWN -> { running = false; true }
-            Retro.ENV_SET_HW_RENDER -> false  // M6: OpenGL/Vulkan contexts
+            // OpenGL / OpenGL core only (no GLES, Vulkan or D3D). The GL context is created after load_game.
+            Retro.ENV_SET_HW_RENDER -> HwRenderRequest.accept(data, core.hwFramebufferStub, core.hwProcAddressStub)?.also { hwRequest = it } != null
             Retro.ENV_SET_PERFORMANCE_LEVEL, Retro.ENV_SET_INPUT_DESCRIPTORS, Retro.ENV_SET_SUPPORT_NO_GAME,
             Retro.ENV_SET_CONTROLLER_INFO, Retro.ENV_SET_SUBSYSTEM_INFO, Retro.ENV_SET_MEMORY_MAPS,
             Retro.ENV_SET_SUPPORT_ACHIEVEMENTS, Retro.ENV_SET_SERIALIZATION_QUIRKS, Retro.ENV_SET_ROTATION,

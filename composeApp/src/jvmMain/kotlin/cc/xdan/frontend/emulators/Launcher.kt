@@ -49,8 +49,9 @@ object Launchers {
         val retroarch = settings.emulators.firstOrNull { it.defId == "retroarch" && it.enabled }
         platform.cores.mapNotNull { CoreCatalog.get(it) }.forEach { core ->
             val file = CoreCatalog.installedFile(core.id) ?: return@forEach
-            if (!core.hw) out += "core:${core.id}" to LaunchTarget.Core(core, file)
-            else if (retroarch != null) out += "core:${core.id}" to external(retroarch, game, file, "${core.name} (RetroArch)")
+            // GPU cores run in the app through an OpenGL context (unless turned off); RetroArch stays available.
+            if (!core.hw || settings.gpuCoresInApp) out += "core:${core.id}" to LaunchTarget.Core(core, file)
+            if (core.hw && retroarch != null) out += "retroarch:${core.id}" to external(retroarch, game, file, "${core.name} (RetroArch)")
         }
         settings.emulators.filter { it.enabled && (game.platformId in it.platforms || "*" in it.platforms) && it.defId != "retroarch" }
             .sortedBy { e -> platform.emulators.indexOf(e.defId).let { if (it < 0) 99 else it } }

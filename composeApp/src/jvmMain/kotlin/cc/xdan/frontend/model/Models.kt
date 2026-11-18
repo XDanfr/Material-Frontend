@@ -150,6 +150,8 @@ data class Settings(
     val videoFilter: VideoFilter = VideoFilter.SHARP,
     val integerScale: Boolean = false,
     val rewind: Boolean = true,
+    /** Run hardware-rendered (OpenGL) cores inside the app; otherwise they launch through RetroArch. */
+    val gpuCoresInApp: Boolean = true,
     val autoSaveState: Boolean = true,
     val minimizeOnExternalLaunch: Boolean = true,
     val reduceMotion: Boolean = false,

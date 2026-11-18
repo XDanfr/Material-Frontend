@@ -230,7 +230,8 @@ fun EmulatorEditDialog(initial: EmulatorConfig, onDismiss: () -> Unit, onSave: (
 // ---------------- Cores ----------------
 
 /** Recommended: first non-HW core of each platform that has cores. */
-fun recommendedCores(): List<CoreDef> = Platforms.all.mapNotNull { p -> p.cores.mapNotNull { CoreCatalog.get(it) }.firstOrNull { !it.hw } }.distinct()
+/** First core per system (GPU cores included now that they run in the app). */
+fun recommendedCores(): List<CoreDef> = Platforms.all.mapNotNull { p -> p.cores.mapNotNull { CoreCatalog.get(it) }.firstOrNull() }.distinct()
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -246,7 +247,7 @@ fun CoresPanel(preselectRecommended: Boolean = false) {
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Cores run games inside Material Frontend, so overlays, save states, rewind and controller menus work everywhere. " +
-            "Cores marked “GPU” need hardware rendering and launch through RetroArch until in-app GPU support lands.",
+            "Cores marked “GPU” use OpenGL inside the app (or RetroArch, if you turn that off under In-game).",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (!supported) Text("The libretro buildbot has no builds for this OS/architecture; place cores in ${AppPaths.cores} manually.", color = MaterialTheme.colorScheme.error)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

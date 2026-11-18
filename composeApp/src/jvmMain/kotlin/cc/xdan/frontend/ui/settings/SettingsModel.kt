@@ -127,6 +127,7 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
             ChoiceSetting("videoFilter", "Video", null, VideoFilter.entries.map { it.label }, VideoFilter.entries.indexOf(s.videoFilter),
                 { i -> set { it.copy(videoFilter = VideoFilter.entries[i]) } }),
             ToggleSetting("integer", "Integer scaling", "Pixel-perfect sizes; may leave borders", s.integerScale) { v -> set { it.copy(integerScale = v) } },
+            ToggleSetting("gpuInApp", "Run GPU cores in the app", "N64, PSP, Dreamcast and PS1 HW cores use OpenGL inside the app (new). Off = launch them through RetroArch.", s.gpuCoresInApp) { v -> set { it.copy(gpuCoresInApp = v) } },
             ToggleSetting("rewind", "Rewind", "Keeps a short history in memory", s.rewind) { v -> set { it.copy(rewind = v) } },
             ToggleSetting("autoSave", "Auto-save state on exit", "Resume exactly where you left off", s.autoSaveState) { v -> set { it.copy(autoSaveState = v) } },
         )

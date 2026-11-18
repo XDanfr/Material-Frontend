@@ -83,6 +83,10 @@ interface LibretroHost {
     fun inputPoll()
     fun inputState(port: Int, device: Int, index: Int, id: Int): Short
     fun rumble(port: Int, effect: Int, strength: Short): Boolean
+    /** Hardware rendering: the framebuffer the core should draw into. */
+    fun hwFramebuffer(): Long = 0L
+    /** Hardware rendering: address of a GL function. */
+    fun hwProcAddress(name: String): Long = 0L
 }
 
 data class SystemInfo(val libraryName: String, val libraryVersion: String, val validExtensions: String, val needFullpath: Boolean, val blockExtract: Boolean)
@@ -125,6 +129,8 @@ class LibretroCore(libPath: Path, private val host: LibretroHost) : AutoCloseabl
     /** Upcall stubs must stay alive as long as the core may call them. */
     private val callbacks = Callbacks(host)
     val rumbleStub: MemorySegment
+    val hwFramebufferStub: MemorySegment
+    val hwProcAddressStub: MemorySegment
 
     init {
         val l = MethodHandles.lookup()
@@ -144,6 +150,8 @@ class LibretroCore(libPath: Path, private val host: LibretroHost) : AutoCloseabl
             FunctionDescriptor.of(JAVA_SHORT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT))
         rumbleStub = stub("rumble", MethodType.methodType(Boolean::class.javaPrimitiveType, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Short::class.javaPrimitiveType),
             FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_INT, JAVA_INT, JAVA_SHORT))
+        hwFramebufferStub = stub("hwFramebuffer", MethodType.methodType(Long::class.javaPrimitiveType), FunctionDescriptor.of(JAVA_LONG))
+        hwProcAddressStub = stub("hwProcAddress", MethodType.methodType(MemorySegment::class.java, MemorySegment::class.java), FunctionDescriptor.of(ADDRESS, ADDRESS))
 
         hSetEnvironment.invoke(env)
         hSetVideo.invoke(video)
@@ -233,4 +241,8 @@ class Callbacks(private val host: LibretroHost) {
     fun poll() { try { host.inputPoll() } catch (_: Throwable) {} }
     fun state(port: Int, device: Int, index: Int, id: Int): Short = try { host.inputState(port, device, index, id) } catch (_: Throwable) { 0 }
     fun rumble(port: Int, effect: Int, strength: Short): Boolean = try { host.rumble(port, effect, strength) } catch (_: Throwable) { false }
+    fun hwFramebuffer(): Long = try { host.hwFramebuffer() } catch (_: Throwable) { 0L }
+    fun hwProcAddress(name: MemorySegment): MemorySegment = try {
+        MemorySegment.ofAddress(host.hwProcAddress(LibretroCore.cstr(name) ?: ""))
+    } catch (_: Throwable) { MemorySegment.NULL }
 }
