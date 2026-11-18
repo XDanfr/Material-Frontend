@@ -18,6 +18,13 @@ class FocusAndRenameTest {
         assertTrue(c.portButtons(0) != 0)
     }
 
+    @Test fun appFocusDrivesControllers() {
+        System.getenv("MF_DATA_DIR") ?: return
+        val app = AppController()
+        app.onWindowFocus(false); assertFalse(app.controllers.windowFocused)
+        app.onWindowFocus(true); assertTrue(app.controllers.windowFocused)
+    }
+
     @Test fun renameRefetchOnlyWithTitleSearchProviders() {
         System.getenv("MF_DATA_DIR") ?: return
         val app = AppController()
