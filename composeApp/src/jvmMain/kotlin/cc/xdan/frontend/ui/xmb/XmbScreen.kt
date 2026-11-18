@@ -210,9 +210,10 @@ fun XmbScreen() {
     val pageItems = groups.firstOrNull { it.section == page }?.items.orEmpty()
     ArtworkSeedEffect((focusedItem as? GameItem)?.game?.assets?.cover)
 
+    var renaming by remember { mutableStateOf<Game?>(null) }
     fun gameOptions(g: Game) {
         val fav = if (g.favorite) "Remove from Favourites" else "Add to Favourites"
-        sidebar = Sidebar(g.title, listOf(if (g.installed) "Play" else "Install", fav, "Launch with…", if (g.hidden) "Show in library" else "Hide from library", "Remove from library")) { i ->
+        sidebar = Sidebar(g.title, listOf(if (g.installed) "Play" else "Install", fav, "Launch with…", if (g.hidden) "Show in library" else "Hide from library", "Remove from library", "Rename")) { i ->
             when (i) {
                 0 -> app.play(g)
                 1 -> app.toggleFavorite(g.id)
@@ -222,6 +223,7 @@ fun XmbScreen() {
                 }
                 3 -> app.setHidden(setOf(g.id), !g.hidden)
                 4 -> sidebar = Sidebar("Remove ${g.title}?", listOf("Remove", "Cancel"), focus = 1) { k -> if (k == 0) app.removeGames(setOf(g.id)) }
+                5 -> renaming = g
             }
         }
     }
@@ -241,6 +243,7 @@ fun XmbScreen() {
     var pressPulse by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         app.controllers.events.collect { e ->
+            if (renaming != null) return@collect   // the rename keyboard handles input
             val c = cats.getOrNull(cat) ?: return@collect
             if (e.nav == Nav.CONFIRM) { pressPulse++; delay(PRESS_DELAY_MS) }
             val sb = sidebar
@@ -362,8 +365,12 @@ fun XmbScreen() {
             exit = slideOutHorizontally(motion.fastSpatialSpec()) { it } + fadeOut(motion.fastEffectsSpec())) {
             lastSidebar.value?.let { sb -> SidebarPanel(sb, pressPulse) { i -> sidebar = null; sb.onPick(i) } }
         }
+        renaming?.let { g ->
+            cc.xdan.frontend.ui.bigscreen.RenameOverlay(g) { t -> if (!t.isNullOrBlank()) app.rename(g.id, t.trim()); renaming = null }
+        }
         if (settings.xmbHints) HintBar(
             when {
+                renaming != null -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Save", Pad.EAST to "Cancel")
                 sidebar != null -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Back")
                 page != null -> listOf(Pad.SOUTH to "Change", Pad.EAST to "Back")
                 focusedItem is GameItem -> listOf(Pad.SOUTH to "Play", Pad.NORTH to "Options", Pad.WEST to "Favourite", Pad.START to "Big Screen")

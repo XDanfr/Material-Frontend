@@ -393,7 +393,8 @@ fun BigScreen() {
                 is Overlay.Power -> MenuOverlay(if (o.confirming != null) listOf(o.confirming.label, "Cancel") else app.powerOptions().map { it.label },
                     o.focus, title = o.confirming?.confirm ?: "Power") { i -> powerAction(o, i, app, overlays) }
                 is Overlay.Rename -> RenameOverlay(o.game, onDone = { t ->
-                    if (o.game.id == NAME_ID) app.updateSettings { it.copy(userName = t.trim().take(32)) }
+                    if (t == null) { /* cancelled */ }
+                    else if (o.game.id == NAME_ID) app.updateSettings { it.copy(userName = t.trim().take(32)) }
                     else if (t.isNotBlank()) app.rename(o.game.id, t.trim())
                     overlays.remove(o) })
                 Overlay.Search -> SearchOverlay(games.filter { !it.hidden }, onClose = { overlays.remove(Overlay.Search) }) { g -> overlays.remove(Overlay.Search); overlays += Overlay.Details(g) }
@@ -863,7 +864,8 @@ private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (
 /** Rename with an on-screen keyboard (aA switches case). */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun RenameOverlay(g: Game, onDone: (String) -> Unit) {
+/** [onDone] gets the new text, or null when cancelled. */
+internal fun RenameOverlay(g: Game, onDone: (String?) -> Unit) {
     val app = LocalApp.current
     var upper by remember { mutableStateOf(false) }
     val letters = "abcdefghijklmnopqrstuvwxyz0123456789".map { it.toString() }
@@ -877,6 +879,11 @@ private fun RenameOverlay(g: Game, onDone: (String) -> Unit) {
         keyPulse++
         when (k) { "aA" -> upper = !upper; "SPACE" -> text += " "; "⌫" -> text = text.dropLast(1); "SAVE" -> onDone(text); else -> text += k }
     }
+    // A physical keyboard types too (Esc cancels, Enter saves).
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        app.textInput = { c -> when (c) { '\u001b' -> onDone(null); '\n' -> onDone(text); '\b' -> text = text.dropLast(1); else -> text += c } }
+        onDispose { app.textInput = null }
+    }
     LaunchedEffect(Unit) {
         app.controllers.events.collect { e ->
             val ks = latestKeys
@@ -888,7 +895,7 @@ private fun RenameOverlay(g: Game, onDone: (String) -> Unit) {
                 Nav.CONFIRM -> press(ks[kr][kc.coerceAtMost(ks[kr].lastIndex)])
                 Nav.ALT -> text = text.dropLast(1)
                 Nav.MENU -> onDone(text)
-                Nav.BACK -> onDone("")
+                Nav.BACK -> onDone(null)
                 else -> {}
             }
         }
