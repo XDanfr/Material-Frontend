@@ -96,6 +96,15 @@ class EmulatorDetector {
         }
     }
 
+    /** Recognises an executable / .app / AppImage a user picked, by name. */
+    fun recognize(file: File): EmulatorDef? {
+        val base = file.name.lowercase().removeSuffix(".exe").removeSuffix(".app").removeSuffix(".appimage")
+        val bundle = generateSequence(file) { it.parentFile }.firstOrNull { it.name.endsWith(".app") }?.name?.removeSuffix(".app")?.lowercase()
+        fun matches(def: EmulatorDef, n: String) = def.binaries.any { b -> n == b || n.startsWith("$b-") || n.startsWith("${b}_") || n.startsWith("$b.") } ||
+            def.macApps.any { it.lowercase() == n }
+        return EmulatorCatalog.all.firstOrNull { d -> (bundle != null && matches(d, bundle)) || matches(d, base) }
+    }
+
     /** Resolves Foo.app/Contents/MacOS/<CFBundleExecutable>. */
     fun bundleExecutable(app: File): File? {
         val plist = File(app, "Contents/Info.plist")

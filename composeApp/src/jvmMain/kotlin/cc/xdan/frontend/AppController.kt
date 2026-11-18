@@ -1,5 +1,6 @@
 package cc.xdan.frontend
 
+import cc.xdan.frontend.model.Usage
 import cc.xdan.frontend.input.Pad
 import cc.xdan.frontend.input.RetroButton
 import cc.xdan.frontend.input.InputMaps
@@ -124,6 +125,8 @@ class AppController {
         // Pre-branding default accent → brand purple.
         if (settings.value.seedColor == 0xFF5B5BD6) settings.update { it.copy(seedColor = 0xFF6750A4) }
         controllers.nintendoConfirm = settings.value.nintendoConfirm
+        Platforms.setCustom(settings.value.customSystems)
+        scope.launch { settings.state.collect { Platforms.setCustom(it.customSystems) } }
         controllers.start()
         // Pick up games added since last time (new ROMs, newly installed Steam/launcher games).
         if (settings.value.onboardingComplete && settings.value.rescanOnStartup) rescan()
@@ -150,7 +153,14 @@ class AppController {
             _scan.value = ScanState(true)
             val s = settings.value
             val existing = library.value.associateBy { it.id }
-            val roms = RomScanner().scan(s.romFolders, existing) { _scan.value = _scan.value.copy(current = it) }.games
+            // Emulators first: what's installed decides which systems are scanned at all.
+            if (s.emulators.isEmpty() && s.usage != Usage.GAMES) {
+                _scan.value = _scan.value.copy(current = "Looking for emulators")
+                val found = runCatching { detector.detect() }.getOrDefault(emptyList())
+                if (found.isNotEmpty()) updateSettings { st -> st.copy(emulators = st.emulators + found.map { it.toConfig() }) }
+            }
+            val allowed = runnablePlatforms()
+            val roms = RomScanner().scan(settings.value.romFolders, existing, allowed) { _scan.value = _scan.value.copy(current = it) }.games
             _scan.value = _scan.value.copy(current = "Steam")
             val steamLib = SteamLibrary()
             val steamGames = if (s.importSteam) runCatching { steamLib.scan() + steamLib.shortcuts() }.getOrDefault(emptyList()) else emptyList()
@@ -169,6 +179,19 @@ class AppController {
             toast("Library updated · ${all.size} games")
             if (scrapeAfter && s.scraper.autoScrapeNew) scraper.scrape(all)
         }
+    }
+
+    /**
+     * Systems something can actually run: an installed core (GPU cores count when they run in the
+     * app or RetroArch is set up) or an enabled emulator that lists the system. Only these are scanned.
+     */
+    fun runnablePlatforms(s: Settings = settings.value): Set<String> {
+        val retroarch = s.emulators.any { it.enabled && it.defId == "retroarch" }
+        val viaCores = Platforms.all.filter { p ->
+            p.cores.mapNotNull { CoreCatalog.get(it) }.any { c -> CoreCatalog.isInstalled(c.id) && (!c.hw || s.gpuCoresInApp || retroarch) }
+        }.map { it.id }
+        val viaEmulators = s.emulators.filter { it.enabled }.flatMap { it.platforms }.filter { it != "*" }
+        return (viaCores + viaEmulators).toSet()
     }
 
     fun toggleFavorite(id: String) = library.updateGame(id) { it.copy(favorite = !it.favorite) }
@@ -194,7 +217,7 @@ class AppController {
      */
     suspend fun playedPlatforms(): Set<String> = withContext(Dispatchers.IO) {
         library.value.map { it.platformId }.toSet() +
-            runCatching { RomScanner().scan(settings.value.romFolders, emptyMap()).games.map { it.platformId } }.getOrDefault(emptyList())
+            runCatching { RomScanner().scan(settings.value.romFolders, emptyMap(), runnablePlatforms()).games.map { it.platformId } }.getOrDefault(emptyList())
     }
 
     /** Remap a RetroPad button for this game or the whole system, applied to the running game at once. */

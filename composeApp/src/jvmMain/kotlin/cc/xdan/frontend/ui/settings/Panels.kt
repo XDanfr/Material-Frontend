@@ -148,6 +148,7 @@ fun EmulatorsPanel(autoScan: Boolean = false) {
     var scanning by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<EmulatorConfig?>(null) }
+    var adding by remember { mutableStateOf(false) }
 
     fun scan() {
         scanning = true
@@ -167,7 +168,7 @@ fun EmulatorsPanel(autoScan: Boolean = false) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = ::scan, enabled = !scanning) { Icon(Icons.Outlined.Search, null); Spacer(Modifier.width(8.dp)); Text("Scan for emulators") }
             OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = {
-                editing = EmulatorConfig("custom-" + System.currentTimeMillis(), "custom", "Custom emulator", "", "\"{rom}\"", emptyList())
+                adding = true
             }) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Add manually") }
             if (scanning) { CartridgeLoader(Modifier.size(44.dp)); Text(progress, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
         }
@@ -190,6 +191,7 @@ fun EmulatorsPanel(autoScan: Boolean = false) {
         }
     }
 
+    if (adding) AddEmulatorDialog(onDismiss = { adding = false })
     editing?.let { e -> EmulatorEditDialog(e, onDismiss = { editing = null }) { updated ->
         app.updateSettings { s -> s.copy(emulators = if (s.emulators.any { it.id == updated.id }) s.emulators.map { if (it.id == updated.id) updated else it } else s.emulators + updated) }
         editing = null

@@ -40,7 +40,11 @@ object TitleCleaner {
 class RomScanner {
     data class Result(val games: List<Game>, val unknownFiles: Int)
 
-    fun scan(folders: List<RomFolder>, existing: Map<String, Game>, onProgress: (String) -> Unit = {}): Result {
+    /**
+     * @param allowed systems that something can actually run (installed core or enabled emulator);
+     *   files for any other system are ignored. null = no restriction.
+     */
+    fun scan(folders: List<RomFolder>, existing: Map<String, Game>, allowed: Set<String>? = null, onProgress: (String) -> Unit = {}): Result {
         val found = LinkedHashMap<String, Game>()
         var unknown = 0
         for (folder in folders) {
@@ -50,6 +54,7 @@ class RomScanner {
             walk(root, root, override, depth = 0) { file, platform ->
                 onProgress(file.name)
                 if (platform == null) { unknown++; return@walk }
+                if (allowed != null && platform.id !in allowed) return@walk
                 val id = Ids.of(file.absolutePath)
                 val prev = existing[id]
                 val stem = if (file.isDirectory) dirTitle(file) else file.nameWithoutExtension

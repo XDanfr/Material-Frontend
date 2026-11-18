@@ -107,6 +107,10 @@ data class EmulatorConfig(
     val enabled: Boolean = true,
 )
 
+/** A system the user described for an emulator we don't know (scanned by its file extensions). */
+@Serializable
+data class CustomSystem(val id: String, val name: String, val extensions: List<String>)
+
 @Serializable
 data class ScraperSettings(
     val steamGridDbKey: String = "",
@@ -139,6 +143,7 @@ data class Settings(
     /** Read existing ES-DE / EmulationStation gamelist.xml and Pegasus metadata files. */
     val importGamelists: Boolean = true,
     val emulators: List<EmulatorConfig> = emptyList(),
+    val customSystems: List<CustomSystem> = emptyList(),
     /** platformId -> "core:<id>" | "emu:<configId>" */
     val defaultLauncher: Map<String, String> = emptyMap(),
     val scraper: ScraperSettings = ScraperSettings(),

@@ -37,7 +37,8 @@ object Platforms {
     /** Storefront collections whose games run natively on the PC. */
     val pcStores = setOf(STEAM, PC, "epic", "ea", "xbox-pc", "gog", "ubisoft", "amazon", "lutris")
 
-    val all: List<Platform> = listOf(
+    /** Built-in systems. */
+    val builtIn: List<Platform> = listOf(
         // Nintendo
         Platform("nes", "Nintendo Entertainment System", "NES", "Nintendo", 1983, setOf("nes", "fds", "unf", "unif", "zip", "7z"),
             setOf("nes", "famicom", "fc", "fds"), "Nintendo - Nintendo Entertainment System", 3, 18,
@@ -157,20 +158,42 @@ object Platforms {
         pcStore("lutris", "Lutris", "Lutris"),
     )
 
-    private val byId = all.associateBy { it.id }
-    fun get(id: String): Platform = byId[id] ?: Platform(id, id, id, "?", 0, emptySet(), emptySet())
-    fun find(id: String?): Platform? = id?.let { byId[it] }
+    /** Systems the user described themselves (unknown emulators: name + file extensions). */
+    @Volatile private var custom: List<Platform> = emptyList()
+    @Volatile private var cache: Triple<Map<String, Platform>, Map<String, Platform>, Map<String, Platform>>? = null
 
-    /** Normalised folder alias -> platform. */
-    val aliasMap: Map<String, Platform> = buildMap {
-        all.forEach { p -> p.aliases.forEach { put(normalize(it), p) }; put(normalize(p.id), p) }
+    fun setCustom(systems: List<CustomSystem>) {
+        custom = systems.map { c ->
+            Platform(c.id, c.name, c.name, "Custom", 0, c.extensions.map { it.lowercase().removePrefix(".") }.toSet(),
+                setOf(c.name, c.id), null, null, null)
+        }
+        cache = null
     }
 
-    /** Extensions that belong to exactly one platform. */
-    val uniqueExtensions: Map<String, Platform> = all.flatMap { p -> p.extensions.map { it to p } }
-        .groupBy({ it.first }, { it.second })
-        .filterValues { it.size == 1 }
-        .mapValues { it.value.first() }
+    val all: List<Platform> get() = builtIn + custom
+
+    private fun maps(): Triple<Map<String, Platform>, Map<String, Platform>, Map<String, Platform>> = cache ?: run {
+        val list = all
+        val byId = list.associateBy { it.id }
+        val alias = buildMap { list.forEach { p -> p.aliases.forEach { put(normalize(it), p) }; put(normalize(p.id), p) } }
+        // Generic extensions never identify a system on their own (only inside a folder named after one).
+        val unique = list.flatMap { p -> p.extensions.map { it to p } }.groupBy({ it.first }, { it.second })
+            .filterValues { it.size == 1 }.mapValues { it.value.first() }.filterKeys { it !in GENERIC_EXTENSIONS }
+        Triple(byId, alias, unique).also { cache = it }
+    }
+
+    fun get(id: String): Platform = maps().first[id] ?: Platform(id, id, id, "?", 0, emptySet(), emptySet())
+    fun find(id: String?): Platform? = id?.let { maps().first[it] }
+
+    /** Normalised folder alias -> platform. */
+    val aliasMap: Map<String, Platform> get() = maps().second
+
+    /** Extensions that belong to exactly one platform (excluding generic ones). */
+    val uniqueExtensions: Map<String, Platform> get() = maps().third
+
+    /** Extensions that also mean plenty of non-game things (archives, executables, disk images…). */
+    val GENERIC_EXTENSIONS = setOf("exe", "bat", "com", "gz", "tar", "tgz", "zip", "7z", "rar", "iso", "bin", "img", "rom", "dsk",
+        "pkg", "elf", "app", "cue", "chd", "m3u", "pbp", "cso", "nkit.iso", "wad", "xex", "god", "zar", "dosz")
 
     fun normalize(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
 
