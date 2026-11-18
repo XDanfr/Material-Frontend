@@ -27,12 +27,12 @@ import kotlin.test.assertTrue
 class SettingsSyncTest {
     private fun groups(app: AppController, mode: UiMode): List<SettingsGroup> {
         var out: List<SettingsGroup> = emptyList()
-        val scene = ImageComposeScene(400, 300, Density(1f)) {
+        val scene = ImageComposeScene(400, 300, Density(1f), coroutineContext = TestFrames) {
             CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
                 MaterialFrontendTheme(app.settings.value, null) { out = settingsGroups(mode) }
             }
         }
-        scene.render(); scene.close()
+        scene.renderTolerant(); scene.close()
         return out
     }
 

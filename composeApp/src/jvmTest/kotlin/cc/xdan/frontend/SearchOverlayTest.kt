@@ -24,12 +24,12 @@ class SearchOverlayTest {
         app.updateSettings { it.copy(onboardingComplete = true, bigScreenHints = true) }
         app.library.update { listOf("Zelda", "Mario", "Metroid").mapIndexed { i, t -> Game("s$i", t, "snes", path = "/s/$i") } }
         app.mode.value = UiMode.BIGSCREEN
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(3) }
         fun press(nav: Nav, pad: Pad? = null) { app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); pump(30) }
         val out = System.getenv("MF_SCREENSHOTS")?.let(::File)?.also { it.mkdirs() }
-        fun shot(n: String) = out?.let { File(it, n).writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
+        fun shot(n: String) = out?.let { File(it, n).writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         var tabSwitches = 0
         val job = kotlinx.coroutines.GlobalScope.launch { app.controllers.events.collect { if (it.nav == Nav.PREV_TAB || it.nav == Nav.NEXT_TAB) tabSwitches++ } }
         pump(60)

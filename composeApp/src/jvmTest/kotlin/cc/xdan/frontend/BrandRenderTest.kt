@@ -28,7 +28,7 @@ class BrandRenderTest {
         out.mkdirs()
         val icons = BrandIcons.cycle
         val cell = 160
-        val scene = ImageComposeScene(cell * icons.size, cell * 4, Density(1f)) {
+        val scene = ImageComposeScene(cell * icons.size, cell * 4, Density(1f), coroutineContext = TestFrames) {
             MaterialTheme(colorScheme = lightColorScheme()) {
                 val cs = MaterialTheme.colorScheme
                 Column(Modifier.background(Color.White)) {
@@ -42,11 +42,11 @@ class BrandRenderTest {
                 }
             }
         }
-        File(out, "brand-icons.png").writeBytes(scene.render().encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        File(out, "brand-icons.png").writeBytes(scene.renderTolerant().encodeToData(EncodedImageFormat.PNG)!!.bytes)
         scene.close()
 
         // Same set in a dark scheme (roles flip; the icons must still read correctly).
-        val dark = ImageComposeScene(cell * icons.size, cell, Density(1f)) {
+        val dark = ImageComposeScene(cell * icons.size, cell, Density(1f), coroutineContext = TestFrames) {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 val cs = MaterialTheme.colorScheme
                 Row(Modifier.background(cs.surface)) {
@@ -54,7 +54,7 @@ class BrandRenderTest {
                 }
             }
         }
-        File(out, "brand-icons-dark.png").writeBytes(dark.render().encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        File(out, "brand-icons-dark.png").writeBytes(dark.renderTolerant().encodeToData(EncodedImageFormat.PNG)!!.bytes)
         dark.close()
     }
 }

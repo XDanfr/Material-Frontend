@@ -28,12 +28,12 @@ class PowerMenuTest {
         app.library.update { listOf(Game("p0", "Game", "snes", path = "/p/0")) }
         app.mode.value = mode
         app.fullscreen.value = false
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(3) }
         pump(60)
         steps { nav, pad -> app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); pump(30) }
-        System.getenv("MF_SCREENSHOTS")?.let(::File)?.also { it.mkdirs() }?.let { File(it, shot).writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
+        System.getenv("MF_SCREENSHOTS")?.let(::File)?.also { it.mkdirs() }?.let { File(it, shot).writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         scene.close()
         return app
     }

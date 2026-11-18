@@ -23,11 +23,11 @@ class XmbNavTest {
         app.updateSettings { it.copy(onboardingComplete = true, xmbBackground = XmbBackground.WAVES) }
         app.library.update { (0 until 4).map { Game("g$it", "Game $it", "snes", path = "/r/$it", lastPlayed = 1000L + it) } }
         app.mode.value = UiMode.XMB
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(3) }
         fun press(nav: Nav, pad: Pad? = null) { app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); pump(30) }
-        fun shot(name: String) = out?.let { File(it, "$name.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
+        fun shot(name: String) = out?.let { File(it, "$name.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         pump(60)
         // Settings category → "Library view", "Big Screen", General, XMB (theme) page.
         press(Nav.LEFT); repeat(3) { press(Nav.DOWN) }
@@ -47,7 +47,7 @@ class XmbNavTest {
         // Each background.
         XmbBackground.entries.forEach { b ->
             app.updateSettings { it.copy(xmbBackground = b, xmbWaves = b != XmbBackground.OFF) }
-            repeat(40) { scene.render(t); t += 250_000_000L }   // let things drift a while
+            repeat(40) { scene.renderTolerant(t); t += 250_000_000L }   // let things drift a while
             shot("xmb-bg-${b.name.lowercase()}")
         }
         scene.close()

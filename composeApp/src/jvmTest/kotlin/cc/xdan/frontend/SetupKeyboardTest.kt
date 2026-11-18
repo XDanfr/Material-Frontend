@@ -21,10 +21,10 @@ class SetupKeyboardTest {
         val app = AppController()
         app.updateSettings { it.copy(onboardingComplete = false, onboardingStep = "USAGE", usage = null) }
         app.fullscreen.value = false
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(ms: Long) { val end = t + ms * 1_000_000; while (t < end) { scene.render(t); t += 16_000_000L } }
-        fun shot(name: String) = File(out, "$name.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        fun pump(ms: Long) { val end = t + ms * 1_000_000; while (t < end) { scene.renderTolerant(t); t += 16_000_000L } }
+        fun shot(name: String) = File(out, "$name.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         pump(500)
         // Same path as the window: keys go through handleKey (onPreviewKeyEvent) → navigation events.
         handleKey(app, KeyEvent(Key.DirectionRight, KeyEventType.KeyDown))

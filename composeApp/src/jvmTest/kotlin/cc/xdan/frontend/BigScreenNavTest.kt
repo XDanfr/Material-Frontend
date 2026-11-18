@@ -21,20 +21,20 @@ class BigScreenNavTest {
         app.updateSettings { it.copy(onboardingComplete = true, bigScreenHints = true) }
         app.library.update { (0 until 6).map { Game("g$it", "Game $it", "snes", path = "/r/$it", lastPlayed = 1000L + it) } }
         app.mode.value = UiMode.BIGSCREEN
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(3) }
         fun press(nav: Nav, pad: Pad? = null) { app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); pump(30) }
         pump(60)
         // Spotlight → Up → tab bar; Right switches to Library.
         press(Nav.UP); press(Nav.RIGHT); press(Nav.DOWN)
         val out = System.getenv("MF_SCREENSHOTS")?.let(::File)?.also { it.mkdirs() }
-        out?.let { File(it, "bigscreen-library-after-tabs.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
+        out?.let { File(it, "bigscreen-library-after-tabs.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         // Library grid (sorted by title): first game → Details → More… → Hide.
         press(Nav.CONFIRM, Pad.SOUTH)
         repeat(3) { press(Nav.RIGHT) }
         press(Nav.CONFIRM, Pad.SOUTH)
-        out?.let { File(it, "bigscreen-manage.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
+        out?.let { File(it, "bigscreen-manage.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         press(Nav.CONFIRM, Pad.SOUTH)
         val hideDeadline = System.currentTimeMillis() + 3000
         while (app.library.value.none { it.hidden } && System.currentTimeMillis() < hideDeadline) pump(5)
@@ -61,9 +61,9 @@ class BigScreenHiddenFilterTest {
         app.updateSettings { it.copy(onboardingComplete = true) }
         app.library.update { listOf(Game("h0", "A", "snes", path = "/h/0"), Game("h1", "B", "snes", path = "/h/1", hidden = true)) }
         app.mode.value = UiMode.BIGSCREEN
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(3) }
         fun press(nav: Nav, pad: Pad? = null) { app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); pump(30) }
         pump(60)
         press(Nav.UP); press(Nav.RIGHT); press(Nav.DOWN)          // Library

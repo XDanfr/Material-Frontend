@@ -37,11 +37,11 @@ class ShelfCardTest {
             }
         }
         app.mode.value = UiMode.BIGSCREEN
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(3) }
         fun press(nav: Nav) { app.controllers.onKey(nav, null, true); pump(4); app.controllers.onKey(nav, null, false); pump(40) }
-        fun shot(n: String) = File(out, n).writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        fun shot(n: String) = File(out, n).writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         pump(60)
         press(Nav.DOWN); pump(30); shot("bigscreen-shelf-expanded.png")
         press(Nav.RIGHT); pump(30); shot("bigscreen-shelf-next.png")
@@ -66,9 +66,9 @@ class ShelfCardTest {
         app.library.update { listOf(Game("L0", "Logo Game", "steam", path = "1", defaultLogoPin = cc.xdan.frontend.model.LogoPin.BOTTOM_LEFT,
             assets = GameAssets(logo = logoPath))) }
         app.mode.value = UiMode.BIGSCREEN
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(3) }
         fun press(nav: Nav, pad: cc.xdan.frontend.input.Pad? = null) { app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); pump(30) }
         pump(60)
         press(Nav.UP); press(Nav.RIGHT); press(Nav.DOWN)                 // Library grid
@@ -76,11 +76,11 @@ class ShelfCardTest {
         repeat(3) { press(Nav.RIGHT) }; press(Nav.CONFIRM, cc.xdan.frontend.input.Pad.SOUTH)   // More…
         repeat(4) { press(Nav.DOWN) }; press(Nav.CONFIRM, cc.xdan.frontend.input.Pad.SOUTH)    // Adjust logo…
         press(Nav.RIGHT); press(Nav.UP)                                   // bottom left → bottom centre → centre
-        out?.let { File(it, "bigscreen-logo-editor-before-size.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
+        out?.let { File(it, "bigscreen-logo-editor-before-size.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         repeat(6) { press(Nav.NEXT_TAB) }; repeat(4) { press(Nav.PREV_TAB) }   // bigger then back a bit, from the anchor
-        out?.let { File(it, "bigscreen-logo-editor.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
+        out?.let { File(it, "bigscreen-logo-editor.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         // The red logo spans its box: 48% of the 960 dp preview ≈ 460 px wide (well past its own 100 px).
-        val img = org.jetbrains.skia.Bitmap.makeFromImage(scene.render(t))
+        val img = org.jetbrains.skia.Bitmap.makeFromImage(scene.renderTolerant(t))
         val redRow = (0 until img.height).maxByOrNull { y -> (0 until img.width).count { x -> img.getColor(x, y) == 0xFFFF0000.toInt() } }!!
         val span = (0 until img.width).count { x -> img.getColor(x, redRow) == 0xFFFF0000.toInt() }
         assert(span in 400..520) { "logo should scale up to ~460 px wide, was $span" }

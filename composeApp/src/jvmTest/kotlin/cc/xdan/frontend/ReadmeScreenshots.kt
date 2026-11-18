@@ -70,12 +70,12 @@ class ReadmeScreenshots {
         println("art: " + app.library.value.count { it.assets.cover != null } + "/" + games.size + " covers, " + app.library.value.count { it.assets.hero != null } + " heroes")
 
         app.mode.value = UiMode.BIGSCREEN
-        val scene = ImageComposeScene(1920, 1080, Density(1.2f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1920, 1080, Density(1.2f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(4) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(4) }
         fun settle() { repeat(60) { pump(2); Thread.sleep(15) } }
         fun press(nav: Nav, pad: Pad? = null) { app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); settle() }
-        fun shot(name: String) = File(out, "$name.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        fun shot(name: String) = File(out, "$name.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
 
         settle(); settle(); shot("big-screen-home")
         press(Nav.DOWN); press(Nav.RIGHT); shot("big-screen-shelf")

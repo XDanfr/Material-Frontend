@@ -21,9 +21,9 @@ class XmbRenameTest {
         app.updateSettings { it.copy(onboardingComplete = true) }
         app.library.update { listOf(Game("x0", "Old", "snes", path = "/x/0")) }
         app.mode.value = UiMode.XMB
-        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val scene = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var t = 0L
-        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun pump(n: Int = 20) = repeat(n) { scene.renderTolerant(t); t += 16_000_000L; Thread.sleep(3) }
         fun press(nav: Nav, pad: Pad? = null) { app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); pump(30) }
         pump(60)
         press(Nav.SEARCH, Pad.NORTH)
@@ -32,7 +32,7 @@ class XmbRenameTest {
         assertNotNull(app.textInput, "rename keyboard takes typing")
         repeat(3) { app.textInput!!('\b'); pump(2) }
         "New".forEach { app.textInput!!(it); pump(2) }
-        System.getenv("MF_SCREENSHOTS")?.let(::File)?.also { it.mkdirs() }?.let { File(it, "xmb-rename.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
+        System.getenv("MF_SCREENSHOTS")?.let(::File)?.also { it.mkdirs() }?.let { File(it, "xmb-rename.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         app.textInput!!('\n'); pump(30)
         assertEquals("New", app.library.value.single().title)
         scene.close()

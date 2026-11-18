@@ -32,7 +32,7 @@ class PlatformMarksTest {
         assertTrue(missing.isEmpty(), "no mark for $missing")
         val out = System.getenv("MF_SCREENSHOTS")?.let(::File)?.also { it.mkdirs() } ?: return
         val ids = Platforms.all.map { it.id }.filter { PlatformMarks.forPlatform(it) != null }
-        val scene = ImageComposeScene(1200, 120 * ((ids.size + 9) / 10), Density(1f)) {
+        val scene = ImageComposeScene(1200, 120 * ((ids.size + 9) / 10), Density(1f), coroutineContext = TestFrames) {
             Column(Modifier.background(Color.White).padding(8.dp)) {
                 ids.chunked(10).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -46,7 +46,7 @@ class PlatformMarksTest {
                 }
             }
         }
-        File(out, "platform-marks.png").writeBytes(scene.render().encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        File(out, "platform-marks.png").writeBytes(scene.renderTolerant().encodeToData(EncodedImageFormat.PNG)!!.bytes)
         scene.close()
     }
 }

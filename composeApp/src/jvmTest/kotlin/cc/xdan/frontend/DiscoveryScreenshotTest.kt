@@ -37,7 +37,7 @@ class DiscoveryScreenshotTest {
             AppController.Discovered("launcher:epic", "Epic Games", "Launcher · 3 games"),
         )
         listOf("many" to items, "single" to items.take(1)).forEach { (name, list) ->
-            val scene = ImageComposeScene(1000, 600, Density(1f)) {
+            val scene = ImageComposeScene(1000, 600, Density(1f), coroutineContext = TestFrames) {
                 CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }, LocalRunnable provides setOf("snes")) {
                     MaterialFrontendTheme(app.settings.value, null) {
                         Surface(Modifier.fillMaxSize()) {
@@ -53,8 +53,8 @@ class DiscoveryScreenshotTest {
                     }
                 }
             }
-            var t = 0L; repeat(30) { scene.render(t); t += 16_000_000L }
-            File(out, "discovery-$name.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+            var t = 0L; repeat(30) { scene.renderTolerant(t); t += 16_000_000L }
+            File(out, "discovery-$name.png").writeBytes(scene.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
             scene.close()
         }
     }

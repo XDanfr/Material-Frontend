@@ -45,12 +45,12 @@ class ScreenshotTest {
         }
         fun shot(name: String, w: Int = 1440, h: Int = 900, setup: () -> Unit) {
             setup()
-            val scene = ImageComposeScene(w, h, Density(1f)) { App(app, showSplash = false) }
+            val scene = ImageComposeScene(w, h, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
             var t = 0L
-            repeat(90) { scene.render(t); t += 16_000_000L }
+            repeat(90) { scene.renderTolerant(t); t += 16_000_000L }
             Thread.sleep(400)
-            repeat(30) { scene.render(t); t += 16_000_000L }
-            val img = scene.render(t)
+            repeat(30) { scene.renderTolerant(t); t += 16_000_000L }
+            val img = scene.renderTolerant(t)
             File(out, "$name.png").writeBytes(img.encodeToData(EncodedImageFormat.PNG)!!.bytes)
             scene.close()
         }
@@ -70,9 +70,9 @@ class ScreenshotTest {
 
         // A controller can answer: Right moves to "Emulation", A chooses it.
         app.updateSettings { it.copy(onboardingStep = "USAGE", usage = null) }
-        val nav = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val nav = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var nt = 0L
-        fun pump(n: Int) = repeat(n) { nav.render(nt); nt += 16_000_000L; Thread.sleep(4) }
+        fun pump(n: Int) = repeat(n) { nav.renderTolerant(nt); nt += 16_000_000L; Thread.sleep(4) }
         pump(30)
         app.controllers.onKey(Nav.RIGHT, null, true); pump(10)
         app.controllers.onKey(Nav.CONFIRM, null, true); pump(30)
@@ -82,64 +82,64 @@ class ScreenshotTest {
         // Press feedback: confirm on Big Screen bounces the focused card, then (after the bounce) opens the game page.
         app.updateSettings { it.copy(onboardingComplete = true) }
         app.mode.value = UiMode.BIGSCREEN
-        val press = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val press = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var pt = 0L
-        repeat(60) { press.render(pt); pt += 16_000_000L }
+        repeat(60) { press.renderTolerant(pt); pt += 16_000_000L }
         app.controllers.onKey(Nav.CONFIRM, null, true)
-        repeat(50) { press.render(pt); pt += 16_000_000L; Thread.sleep(8) }
-        File(out, "press-details.png").writeBytes(press.render(pt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        repeat(50) { press.renderTolerant(pt); pt += 16_000_000L; Thread.sleep(8) }
+        File(out, "press-details.png").writeBytes(press.renderTolerant(pt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         press.close()
 
         // Settings → General (shared list, accent chips) in the Library view.
-        val general = ImageComposeScene(1440, 1000, Density(1f)) {
+        val general = ImageComposeScene(1440, 1000, Density(1f), coroutineContext = TestFrames) {
             CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
                 MaterialFrontendTheme(app.settings.value, null) { SettingsScreen(onBack = {}, initial = SettingsSection.GENERAL) }
             }
         }
         var gt = 0L
-        repeat(30) { general.render(gt); gt += 16_000_000L }
-        File(out, "settings-general.png").writeBytes(general.render(gt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        repeat(30) { general.renderTolerant(gt); gt += 16_000_000L }
+        File(out, "settings-general.png").writeBytes(general.renderTolerant(gt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         general.close()
-        val ingame = ImageComposeScene(1440, 700, Density(1f)) {
+        val ingame = ImageComposeScene(1440, 700, Density(1f), coroutineContext = TestFrames) {
             CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
                 MaterialFrontendTheme(app.settings.value, null) { SettingsScreen(onBack = {}, initial = SettingsSection.PLAYBACK) }
             }
         }
         var it2 = 0L
-        repeat(30) { ingame.render(it2); it2 += 16_000_000L }
-        File(out, "settings-ingame.png").writeBytes(ingame.render(it2).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        repeat(30) { ingame.renderTolerant(it2); it2 += 16_000_000L }
+        File(out, "settings-ingame.png").writeBytes(ingame.renderTolerant(it2).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         ingame.close()
 
         // Big Screen → Settings tab (two tab steps right) and XMB → Settings category.
         app.updateSettings { it.copy(onboardingComplete = true) }
         app.mode.value = UiMode.BIGSCREEN
-        val bs = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val bs = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var bt = 0L
-        fun bpump(n: Int) = repeat(n) { bs.render(bt); bt += 16_000_000L; Thread.sleep(3) }
+        fun bpump(n: Int) = repeat(n) { bs.renderTolerant(bt); bt += 16_000_000L; Thread.sleep(3) }
         bpump(30); app.controllers.onKey(Nav.NEXT_TAB, null, true); bpump(10); app.controllers.onKey(Nav.NEXT_TAB, null, true); bpump(60)
-        File(out, "bigscreen-settings.png").writeBytes(bs.render(bt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        File(out, "bigscreen-settings.png").writeBytes(bs.renderTolerant(bt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         bs.close()
         app.mode.value = UiMode.XMB
-        val xs = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        val xs = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = false) }
         var xt = 0L
-        fun xpump(n: Int) = repeat(n) { xs.render(xt); xt += 16_000_000L; Thread.sleep(3) }
+        fun xpump(n: Int) = repeat(n) { xs.renderTolerant(xt); xt += 16_000_000L; Thread.sleep(3) }
         xpump(30); app.controllers.onKey(Nav.LEFT, null, true); xpump(60)
-        File(out, "xmb-settings.png").writeBytes(xs.render(xt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        File(out, "xmb-settings.png").writeBytes(xs.renderTolerant(xt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         xs.close()
 
         // Settings → About (credit, link, reset options).
-        val about = ImageComposeScene(1440, 1100, Density(1f)) {
+        val about = ImageComposeScene(1440, 1100, Density(1f), coroutineContext = TestFrames) {
             CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
                 MaterialFrontendTheme(app.settings.value, null) { SettingsScreen(onBack = {}, initial = SettingsSection.ABOUT) }
             }
         }
         var at = 0L
-        repeat(30) { about.render(at); at += 16_000_000L }
-        File(out, "settings-about.png").writeBytes(about.render(at).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        repeat(30) { about.renderTolerant(at); at += 16_000_000L }
+        File(out, "settings-about.png").writeBytes(about.renderTolerant(at).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         about.close()
 
         // Launching screen (Big Screen / XMB) for a game launching through an emulator.
-        val launching = ImageComposeScene(1440, 900, Density(1f)) {
+        val launching = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) {
             CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
                 MaterialFrontendTheme(app.settings.value, null) {
                     LaunchingOverlay(LaunchingState(app.library.value.first { it.platformId == "gba" }, "mGBA", LaunchKind.URI))
@@ -147,29 +147,29 @@ class ScreenshotTest {
             }
         }
         var lt = 0L
-        repeat(40) { launching.render(lt); lt += 16_000_000L }
-        File(out, "launching.png").writeBytes(launching.render(lt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        repeat(40) { launching.renderTolerant(lt); lt += 16_000_000L }
+        File(out, "launching.png").writeBytes(launching.renderTolerant(lt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         launching.close()
 
         // Launch animation → setup hand-off: the logo should rise first, then "Welcome" + Continue appear.
         app.updateSettings { it.copy(onboardingComplete = false, onboardingStep = null) }
-        val handoff = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = true) }
+        val handoff = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = true) }
         var ht = 0L
         for ((name, ms) in listOf("handoff-1-logo" to 2700L, "handoff-2-rising" to 3150L, "handoff-3-risen" to 3700L, "handoff-4-button" to 4300L)) {
-            while (ht < ms * 1_000_000L) { handoff.render(ht); ht += 16_000_000L }
-            File(out, "$name.png").writeBytes(handoff.render(ht).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+            while (ht < ms * 1_000_000L) { handoff.renderTolerant(ht); ht += 16_000_000L }
+            File(out, "$name.png").writeBytes(handoff.renderTolerant(ht).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         }
         handoff.close()
         app.updateSettings { it.copy(onboardingComplete = true) }
 
         // Launch animation at key moments of its timeline (frame-clock driven).
         app.updateSettings { it.copy(onboardingComplete = true) }
-        val splash = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = true) }
+        val splash = ImageComposeScene(1440, 900, Density(1f), coroutineContext = TestFrames) { App(app, showSplash = true) }
         var t = 0L
         for ((name, ms) in listOf("splash-1-circle" to 200L, "splash-2-cookie" to 640L, "splash-3-flower" to 1150L,
                                   "splash-4-wave" to 1650L, "splash-5-final" to 2500L)) {
-            while (t < ms * 1_000_000L) { splash.render(t); t += 16_000_000L }
-            File(out, "$name.png").writeBytes(splash.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+            while (t < ms * 1_000_000L) { splash.renderTolerant(t); t += 16_000_000L }
+            File(out, "$name.png").writeBytes(splash.renderTolerant(t).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         }
         splash.close()
     }
