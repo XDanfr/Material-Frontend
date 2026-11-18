@@ -75,6 +75,16 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
     fun onOff(b: Boolean) = if (b) "On" else "Off"
     return when (section) {
         SettingsSection.GENERAL -> listOf(
+            when (mode) {
+                UiMode.BIGSCREEN -> ActionSetting("userName", "Your name", s.userName.ifBlank { app.steamName?.let { "Using your Steam name: $it" } ?: "Used in the Home greeting" },
+                    if (s.userName.isBlank()) "Set" else "Change", { app.nameEntry.value = true })
+                else -> PanelSetting("userName", "Your name", "Used in the Big Screen greeting. Leave blank to use your Steam name.",
+                    s.userName.ifBlank { app.steamName ?: "Not set" }) {
+                    androidx.compose.material3.OutlinedTextField(s.userName, { v -> set { it.copy(userName = v.take(32)) } },
+                        label = { androidx.compose.material3.Text("Name") }, singleLine = true,
+                        placeholder = { app.steamName?.let { androidx.compose.material3.Text(it) } })
+                }
+            },
             ChoiceSetting("theme", "Light or dark", null, listOf("Automatic", "Light", "Dark", "Black"),
                 ThemeMode.entries.indexOf(s.themeMode), { i -> set { it.copy(themeMode = ThemeMode.entries[i]) } }),
             ChoiceSetting("accent", "Accent colour", "Used when colour from artwork is off or there's no artwork",

@@ -203,6 +203,11 @@ fun BigScreen() {
         )
     }
 
+    // Settings → Your name opens the on-screen keyboard (reusing rename, keyed by a placeholder id).
+    val wantsName by app.nameEntry.collectAsState()
+    LaunchedEffect(wantsName) {
+        if (wantsName) { app.nameEntry.value = false; overlays += Overlay.Rename(Game(NAME_ID, settings.userName, "", path = "")) }
+    }
     val currentFocused by rememberUpdatedState(focused)
     val libNow by rememberUpdatedState(libGames)
     val shelvesNow by rememberUpdatedState(shelves)
@@ -333,7 +338,7 @@ fun BigScreen() {
                 is Overlay.Manage -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Back")
                 is Overlay.Rename -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Save", Pad.EAST to "Cancel")
                 is Overlay.Menu, is Overlay.LaunchWith -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
-                Overlay.Search -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Open result", Pad.EAST to "Close")
+                Overlay.Search -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Delete", Pad.START to "Results", Pad.EAST to "Back")
                 null -> if (barFocus) listOf(Pad.LEFT to "Switch tab", Pad.DOWN to "Back to content")
                         else if (tab == Tab.SETTINGS) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Value", Pad.LB to "", Pad.RB to "Tabs", Pad.EAST to "Home")
                         else listOf(Pad.SOUTH to "Details", Pad.WEST to "Favourite", Pad.NORTH to "Search", Pad.LB to "", Pad.RB to "Tabs", Pad.START to "Menu")
@@ -353,7 +358,10 @@ fun BigScreen() {
                 is Overlay.Manage -> MenuOverlay(manageItems(o.game, o.game.id in settings.spotlightGames).map { if (it == "Remove from library" && o.armedRemove) "Press again to remove" else it }, o.focus, title = o.game.title) { i ->
                     overlays[overlays.indexOf(o)] = o.copy(focus = i); manageAction(o.copy(focus = i), app, overlays)
                 }
-                is Overlay.Rename -> RenameOverlay(o.game, onDone = { t -> if (t.isNotBlank()) app.rename(o.game.id, t.trim()); overlays.remove(o) })
+                is Overlay.Rename -> RenameOverlay(o.game, onDone = { t ->
+                    if (o.game.id == NAME_ID) app.updateSettings { it.copy(userName = t.trim().take(32)) }
+                    else if (t.isNotBlank()) app.rename(o.game.id, t.trim())
+                    overlays.remove(o) })
                 Overlay.Search -> SearchOverlay(games.filter { !it.hidden }, onClose = { overlays.remove(Overlay.Search) }) { g -> overlays.remove(Overlay.Search); overlays += Overlay.Details(g) }
             }
         }
@@ -409,6 +417,17 @@ private fun TopBar(tab: Tab, family: ControllerFamily, barFocus: Boolean, onTab:
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
+private fun Greeting(modifier: Modifier = Modifier) {
+    val app = LocalApp.current
+    val s by app.settings.state.collectAsState()
+    // New line each hour; stable within it.
+    val hour = java.time.LocalTime.now().hour
+    val seed = remember(hour) { System.currentTimeMillis() / 3_600_000 }
+    val text = Greetings.line(Greetings.forHour(hour, seed), s.userName.ifBlank { app.steamName ?: "" })
+    Text(text, modifier, style = MaterialTheme.typography.headlineMediumEmphasized, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+}
+
+@Composable
 private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused: Game?, featured: List<Game>, spotIdx: Int, contentFocus: Boolean,
                     onSpot: (Int) -> Unit, onClick: (Int, Int) -> Unit) {
     if (shelves.isEmpty()) {
@@ -425,12 +444,15 @@ private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused
         Box(Modifier.fillMaxWidth().weight(0.42f).padding(horizontal = 56.dp), contentAlignment = Alignment.BottomStart) {
             val motion = MaterialTheme.motionScheme
             // The top area is the spotlight while it has focus, and describes the focused game otherwise.
-            AnimatedContent(if (row == -1) null else focused, transitionSpec = {
+            AnimatedContent(if (row == -1 || !contentFocus) null else focused, transitionSpec = {
                 (fadeIn(motion.defaultEffectsSpec()) + slideInVertically(motion.defaultSpatialSpec()) { it / 8 })
                     .togetherWith(fadeOut(motion.fastEffectsSpec()))
             }, contentKey = { it?.id ?: "spotlight" }) { g ->
                 if (g != null) HeroInfo(g)
-                else if (featured.isNotEmpty()) Spotlight(featured, spotIdx, row == -1 && contentFocus, onSpot)
+                else Column {
+                    Greeting(Modifier.padding(top = 4.dp, bottom = 4.dp))
+                    if (featured.isNotEmpty()) Box(Modifier.weight(1f)) { Spotlight(featured, spotIdx, row == -1 && contentFocus, onSpot) }
+                }
             }
         }
         val listState = rememberLazyListState()
@@ -528,7 +550,7 @@ private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack:
                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         BigButton(if (g.installed) "Play" else "Install", focus == 0, primary = true) { onAction(0); onPlay() }
-                        BigButton("Favourite", focus == 1, suffix = "d", showSuffix = g.favorite) { onAction(1); app.toggleFavorite(g.id) }
+                        BigButton("Favourite", focus == 1, suffix = "d", showSuffix = g.favorite, glyph = Pad.WEST) { onAction(1); app.toggleFavorite(g.id) }
                         BigButton("Launch with…", focus == 2) { onAction(2); onLaunchWith() }
                         BigButton("More…", focus == 3) { onAction(3); onMore() }
                     }
@@ -542,7 +564,7 @@ private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack:
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun BigButton(label: String, focused: Boolean, primary: Boolean = false, suffix: String? = null, showSuffix: Boolean = false, onClick: () -> Unit) {
+private fun BigButton(label: String, focused: Boolean, primary: Boolean = false, suffix: String? = null, showSuffix: Boolean = false, glyph: Pad? = null, onClick: () -> Unit) {
     val scale by animateFloatAsState(if (focused) 1.08f else 1f, MaterialTheme.motionScheme.fastSpatialSpec())
     val corner by androidx.compose.animation.core.animateDpAsState(if (focused) 20.dp else 32.dp, MaterialTheme.motionScheme.fastSpatialSpec())
     val bg = when { focused && primary -> MaterialTheme.colorScheme.primary; focused -> MaterialTheme.colorScheme.secondaryContainer; else -> MaterialTheme.colorScheme.surfaceContainerHigh }
@@ -554,6 +576,7 @@ private fun BigButton(label: String, focused: Boolean, primary: Boolean = false,
         // The button widens with a spring while an optional suffix (e.g. the "d" of "Favourited") slides in.
         Row(Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()).padding(horizontal = 32.dp).fillMaxHeight(),
             verticalAlignment = Alignment.CenterVertically) {
+            if (glyph != null) { ButtonGlyph(glyph, LocalApp.current.controllers.activeFamily.collectAsState().value); Spacer(Modifier.width(12.dp)) }
             Text(label, style = style, color = fg)
             if (suffix != null) AnimatedVisibility(showSuffix,
                 enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Start) +
@@ -616,55 +639,81 @@ fun SheetItem(label: String, focused: Boolean, onClick: () -> Unit) {
 @Composable
 private fun SearchOverlay(games: List<Game>, onClose: () -> Unit, onOpen: (Game) -> Unit) {
     val app = LocalApp.current
-    val keys = remember { ("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".map { it.toString() } + listOf("SPACE", "⌫")).chunked(10) }
+    val family by app.controllers.activeFamily.collectAsState()
+    val keys = remember { ("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".map { it.toString() } + listOf("SPACE", "⌫", "RESULTS")).chunked(10) }
     var query by remember { mutableStateOf("") }
     var kr by remember { mutableIntStateOf(0) }
     var kc by remember { mutableIntStateOf(0) }
+    var inResults by remember { mutableStateOf(false) }
+    var ri by remember { mutableIntStateOf(0) }
     val results = remember(query, games) { if (query.isBlank()) emptyList() else LibraryQuery.filter(games, Collection.All, query).take(8) }
+    val resultsNow by rememberUpdatedState(results)
     var keyPulse by remember { mutableIntStateOf(0) }
-    fun press(k: String) { keyPulse++; query = when (k) { "SPACE" -> "$query "; "⌫" -> query.dropLast(1); else -> query + k.lowercase() } }
+    fun toResults() { if (resultsNow.isNotEmpty()) { inResults = true; ri = 0 } }
+    fun press(k: String) { keyPulse++; when (k) { "SPACE" -> query = "$query "; "⌫" -> query = query.dropLast(1); "RESULTS" -> toResults(); else -> query += k.lowercase() } }
+    // A physical keyboard types straight into the query.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        app.textInput = { c -> when (c) { '\b' -> query = query.dropLast(1); '\n' -> toResults(); else -> { query += c.lowercaseChar(); inResults = false } } }
+        onDispose { app.textInput = null }
+    }
     LaunchedEffect(Unit) {
         app.controllers.events.collect { e ->
-            when (e.nav) {
+            if (inResults) when (e.nav) {
+                Nav.UP -> ri = (ri - 1).coerceAtLeast(0)
+                Nav.DOWN -> ri = (ri + 1).coerceAtMost(resultsNow.lastIndex.coerceAtLeast(0))
+                Nav.CONFIRM -> resultsNow.getOrNull(ri)?.let(onOpen)
+                Nav.LEFT, Nav.BACK -> inResults = false
+                Nav.SEARCH -> onClose()
+                else -> {}
+            } else when (e.nav) {
                 Nav.UP -> kr = (kr - 1).coerceAtLeast(0)
-                Nav.DOWN -> kr = (kr + 1).coerceAtMost(keys.lastIndex)
+                Nav.DOWN -> { kr = (kr + 1).coerceAtMost(keys.lastIndex); kc = kc.coerceAtMost(keys[kr].lastIndex) }
                 Nav.LEFT -> kc = (kc - 1).coerceAtLeast(0)
-                Nav.RIGHT -> kc = (kc + 1).coerceAtMost(keys[kr].lastIndex)
+                Nav.RIGHT -> if (kc < keys[kr].lastIndex) kc++ else toResults()
                 Nav.CONFIRM -> press(keys[kr][kc.coerceAtMost(keys[kr].lastIndex)])
                 Nav.ALT -> query = query.dropLast(1)
-                Nav.MENU -> results.firstOrNull()?.let(onOpen)
+                Nav.MENU -> toResults()
                 Nav.BACK, Nav.SEARCH -> onClose()
                 else -> {}
             }
         }
     }
+    // Centred until there's a query, then the keyboard slides left and results take the right.
+    val bias by animateFloatAsState(if (query.isEmpty()) 0f else -1f, MaterialTheme.motionScheme.defaultSpatialSpec())
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)).padding(64.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            Text(query.ifEmpty { "Search" } + "▏", style = MaterialTheme.typography.displaySmallEmphasized,
+        Column(Modifier.align(androidx.compose.ui.BiasAlignment(bias, 0f)), verticalArrangement = Arrangement.spacedBy(24.dp),
+            horizontalAlignment = androidx.compose.ui.BiasAlignment.Horizontal(bias)) {
+            Text(query.ifEmpty { "Type to search" } + "▏", style = MaterialTheme.typography.displaySmallEmphasized,
                 color = if (query.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
-            Row(horizontalArrangement = Arrangement.spacedBy(48.dp)) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    keys.forEachIndexed { r, rowKeys ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            rowKeys.forEachIndexed { c, k ->
-                                val f = r == kr && c == kc
-                                Box(Modifier.size(if (k.length > 1) 112.dp else 52.dp, 52.dp).pressBounce(keyPulse, f, depth = 0.85f).focusEmphasis(f, 26.dp, 14.dp, 1.1f)
-                                    .background(if (f) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
-                                    .clickable { kr = r; kc = c; press(k) }, contentAlignment = Alignment.Center) {
-                                    Text(k, style = MaterialTheme.typography.titleMedium.reactive(f) { copy(wght = 860f, wdth = 114f, rond = 100f) })
-                                }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.alpha(if (inResults) 0.5f else 1f)) {
+                keys.forEachIndexed { r, rowKeys ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowKeys.forEachIndexed { c, k ->
+                            val f = !inResults && r == kr && c == kc
+                            Row(Modifier.size(when { k == "⌫" -> 112.dp; k.length > 1 -> 172.dp; else -> 52.dp }, 52.dp).pressBounce(keyPulse, f, depth = 0.85f).focusEmphasis(f, 26.dp, 14.dp, 1.1f)
+                                .background(if (f) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .clickable { kr = r; kc = c; press(k) }, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                                when (k) { "⌫" -> ButtonGlyph(Pad.WEST, family); "RESULTS" -> ButtonGlyph(Pad.START, family) }
+                                Text(if (k == "RESULTS") "Results" else k, style = MaterialTheme.typography.titleMedium.reactive(f) { copy(wght = 860f, wdth = 114f, rond = 100f) })
                             }
                         }
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    results.forEachIndexed { i, g ->
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.clickable { onOpen(g) }) {
-                            CoverArt(g, Modifier.size(48.dp, 68.dp).clip(RoundedCornerShape(10.dp)), maxDim = 140)
-                            Column {
-                                Text(g.title, style = if (i == 0) MaterialTheme.typography.titleLargeEmphasized else MaterialTheme.typography.titleMedium)
-                                Text(Platforms.get(g.platformId).name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+            }
+        }
+        androidx.compose.animation.AnimatedVisibility(query.isNotEmpty(), Modifier.align(Alignment.CenterEnd).width(460.dp),
+            enter = fadeIn() + slideInHorizontally { it / 3 }, exit = fadeOut() + slideOutHorizontally { it / 3 }) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (results.isEmpty()) Text("No matches", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                results.forEachIndexed { i, g ->
+                    val f = inResults && i == ri
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth().focusEmphasis(f, 20.dp, 20.dp, 1.03f)
+                            .background(if (f) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent).clickable { onOpen(g) }.padding(8.dp)) {
+                        CoverArt(g, Modifier.size(48.dp, 68.dp).clip(RoundedCornerShape(10.dp)), maxDim = 140)
+                        Column {
+                            Text(g.title, style = if (f) MaterialTheme.typography.titleLargeEmphasized else MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(Platforms.get(g.platformId).name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -674,6 +723,7 @@ private fun SearchOverlay(games: List<Game>, onClose: () -> Unit, onOpen: (Game)
 }
 
 
+private const val NAME_ID = "__username"
 private const val HIDDEN = "__hidden"
 
 /** Spotlight picks: what you're playing, favourites, then new arrivals — preferring games with wide art. */
@@ -727,7 +777,6 @@ private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (
     }
     for (i in games.indices) {
         val x = left(i); val w = widthOf(i)
-        if (x + w < 0.dp || x > maxWidth) continue
         androidx.compose.runtime.key(games[i].id) {
         Box(Modifier.offset(x = x).width(w).fillMaxHeight()) {
         val g = games[i]

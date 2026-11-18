@@ -188,6 +188,8 @@ data class Settings(
     val bigScreenHints: Boolean = true,
     val spotlight: SpotlightMode = SpotlightMode.RECENT,
     val spotlightGames: List<String> = emptyList(),
+    /** Name used in the Home greeting; blank → Steam's account name if found. */
+    val userName: String = "",
     val xmbWaves: Boolean = true,
     val xmbBackground: XmbBackground = XmbBackground.WAVES,
     val xmbHints: Boolean = true,

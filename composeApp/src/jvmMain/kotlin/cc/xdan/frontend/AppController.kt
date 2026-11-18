@@ -168,6 +168,12 @@ class AppController {
 
     // ---------- Frontend control remapping ----------
     /** Set while waiting for a key to bind (Main's key handler delivers the next key-down here). */
+    /** While set, typed characters (and Backspace/Enter as '\b'/'\n') go here instead of navigation — Big Screen search. */
+    /** Big Screen: show the on-screen keyboard to enter [Settings.userName]. */
+    val nameEntry = MutableStateFlow(false)
+    /** Steam's display name for the most recent login (read once). */
+    val steamName: String? by lazy { runCatching { cc.xdan.frontend.data.SteamLibrary().steamRoot()?.let { cc.xdan.frontend.ui.bigscreen.Greetings.steamPersona(java.io.File(it, "config/loginusers.vdf").readText()) } }.getOrNull() }
+    @Volatile var textInput: ((Char) -> Unit)? = null
     @Volatile var keyCapture: ((androidx.compose.ui.input.key.Key) -> Unit)? = null
     private val _binding = MutableStateFlow<Nav?>(null)
     /** The action currently waiting for a key or button. */

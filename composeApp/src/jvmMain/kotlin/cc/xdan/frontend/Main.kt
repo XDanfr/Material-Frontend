@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -95,6 +96,13 @@ internal fun handleKey(app: AppController, e: KeyEvent): Boolean {
     }
     val inGame = app.session.value != null
     if (!inGame && app.mode.value == UiMode.LIST) return false
+    app.textInput?.takeIf { !inGame && !e.isCtrlPressed && !e.isMetaPressed }?.let { type ->
+        val ch = when (e.key) {
+            Key.Backspace -> '\b'; Key.Enter -> '\n'
+            else -> e.utf16CodePoint.toChar().takeIf { it.isLetterOrDigit() || it == ' ' || it in "-:'&!.?" }
+        }
+        if (ch != null) { if (down) type(ch); return true }
+    }
     if (e.isCtrlPressed || e.isMetaPressed) return false
 
     if (inGame) {
