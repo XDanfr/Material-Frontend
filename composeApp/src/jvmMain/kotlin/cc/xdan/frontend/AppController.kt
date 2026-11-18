@@ -60,6 +60,9 @@ class AppController {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val http = createHttpClient()
     val settings = SettingsStore(scope)
+    private val _runnable = MutableStateFlow<Set<String>>(emptySet())
+    /** Systems that can run right now; ROMs for other systems stay in the library, greyed out. */
+    val runnable: StateFlow<Set<String>> = _runnable.asStateFlow()
     val library = LibraryStore(scope)
     val controllers = ControllerManager()
     val detector = EmulatorDetector()
@@ -148,9 +151,6 @@ class AppController {
 
     // ---------- Library ----------
 
-    private val _runnable = MutableStateFlow<Set<String>>(emptySet())
-    /** Systems that can run right now; ROMs for other systems stay in the library, greyed out. */
-    val runnable: StateFlow<Set<String>> = _runnable.asStateFlow()
     fun refreshRunnable() { _runnable.value = runnablePlatforms() }
 
     /** Something new found on this machine during a rescan, waiting for "add it?". */
@@ -230,7 +230,7 @@ class AppController {
             } else emptyList()
             val imported = if (s.importGamelists) Gamelists.apply(roms, s.romFolders) else roms
             val keep = library.value.filter { it.kind == GameKind.PORT }
-            val all = (imported + steam + launchers + keep).distinctBy { it.id }
+            val all = (imported + steam + launchers + keep).distinctBy { it.id }.filter { it.id !in settings.value.removedGames }
             library.update { all }
             _scan.value = ScanState(false, "", all.size)
             toast("Library updated · ${all.size} games")
@@ -266,7 +266,7 @@ class AppController {
         return g
     }
 
-    fun removeGames(ids: Set<String>) = library.remove(ids)
+    fun removeGames(ids: Set<String>) { updateSettings { it.copy(removedGames = it.removedGames + ids) }; library.remove(ids) }
 
     /**
      * Systems the user plays: those in the library plus those found in their game folders

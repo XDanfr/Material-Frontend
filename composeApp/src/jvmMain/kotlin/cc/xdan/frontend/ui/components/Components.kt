@@ -107,7 +107,7 @@ fun CoverArt(game: Game, modifier: Modifier = Modifier, maxDim: Int = 400, prefe
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)
         .then(if (unavailable) Modifier.graphicsLayer { alpha = 0.55f } else Modifier)) {
         val bmp = img
-        if (unavailable && maxWidth >= 90.dp) {
+        if (unavailable && bmp != null && maxWidth >= 90.dp) {
             androidx.compose.material3.Surface(Modifier.align(Alignment.TopEnd).padding(8.dp).zIndex(1f), shape = androidx.compose.foundation.shape.CircleShape,
                 color = MaterialTheme.colorScheme.inverseSurface) {
                 Text("No emulator", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall,
@@ -122,8 +122,8 @@ fun CoverArt(game: Game, modifier: Modifier = Modifier, maxDim: Int = 400, prefe
                 Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleMediumEmphasized, color = MaterialTheme.colorScheme.primary)
         } else {
             Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(Platforms.get(game.platformId).shortName.uppercase(), style = MaterialTheme.typography.labelMediumEmphasized,
-                    color = MaterialTheme.colorScheme.primary)
+                Text(if (unavailable) "NO EMULATOR · " + Platforms.get(game.platformId).shortName.uppercase() else Platforms.get(game.platformId).shortName.uppercase(),
+                    style = MaterialTheme.typography.labelMediumEmphasized, color = if (unavailable) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 Text(game.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 4, overflow = TextOverflow.Ellipsis)
             }
@@ -143,7 +143,7 @@ fun Modifier.focusEmphasis(focused: Boolean, baseCorner: Dp = 12.dp, focusedCorn
     return this
         .graphicsLayer { scaleX = s; scaleY = s }
         .border(3.dp, outline, RoundedCornerShape(corner))
-        .padding(pad)
+        .padding(pad.coerceAtLeast(0.dp))
         .clip(RoundedCornerShape((corner - pad).coerceAtLeast(0.dp)))
 }
 
