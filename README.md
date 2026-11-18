@@ -32,8 +32,14 @@ A Material 3 Expressive emulation frontend for Windows, macOS and Linux, built w
 - **Controllers:** SDL3 through LWJGL, with hot-plug. It detects Xbox, PlayStation, Nintendo, Steam and 8BitDo pads, shows matching button glyphs, has an option for Nintendo-style confirm, and maps pads to 4 players.
 - **Setup:** one question per screen, centred cards, the same Back/Continue buttons throughout; controller, keyboard or mouse. It continues from the launch animation, asks what you'll use the app for (PC games, emulation or both) and only asks what's relevant: theme (Library, Big Screen or XMB, with previews), light or dark, PC libraries, game folders, emulators, cores, BIOS (only for your systems), artwork. Progress is saved, so it resumes where you left off, including after switching to fullscreen.
 - **Settings in every mode:** one settings list, rendered as the Settings screen (Library view), a Settings tab (Big Screen) and the Settings category (XMB); a change anywhere shows everywhere. Each mode also has its own section (layout and sort; clock and hints; waves and hints). Accent colours are Pixel-style chips showing each seed's primary, secondary and tertiary colours.
-- **Steam in CrossOver and Parallels:** Windows Steam games in CrossOver bottles (macOS and Linux) and in Parallels VMs with shared drives are listed and launched through CrossOver's `wine` / `prlctl`.
+- **CrossOver and Parallels:** Windows Steam, Epic, EA, GOG, Ubisoft (CrossOver) and Xbox (`XboxGames` folders, e.g. on a Parallels shared drive) games are listed and launched through CrossOver's `wine` / `prlctl`.
+- **Only what you can run:** emulators are found first and only systems with an installed core or emulator are scanned. Generic file types (archives, `.exe`, `.iso`, `.bin`…) only count inside a folder named after a system. Unknown emulators can be added step by step (what is it → what does it emulate → which file extensions). Games whose emulator goes away stay, greyed out, with their history.
+- **New on this machine:** each rescan looks for new emulators and launchers and asks whether to add them.
+- **Games you own but haven't installed:** Steam games appear greyed out with Install, when this machine can run them (Mac versions on macOS, plus Windows versions through Steam in CrossOver/Parallels; Windows and Linux versions on Linux; Windows versions on Windows). Add a Steam Web API key for the complete list; otherwise it's the games Steam lists locally.
 - **Start-up rescan:** new games are picked up every launch (can be turned off).
+- **Big Screen:** a spotlight hero carousel, Up from the top reaches the tabs, and More… hides, renames or removes a game (removals stick across rescans; hidden games have their own filter).
+- **XMB:** settings are pages with a PS3-style options sidebar; Triangle/Options opens a game's options (favourite, launch with, hide, remove). Backgrounds: ribbon waves with sparkles, floating Material shapes, squiggles or a mix, lit by the time of day.
+- **Remappable controls:** every frontend action can get its own key and controller button (Settings → Controllers).
 
 ## Build and run
 
@@ -62,8 +68,8 @@ CI (`.github/workflows/build.yml`) tests and packages on Windows x64, Linux x64 
 |---|---|---|
 | Navigate | D-pad / left stick | Arrows |
 | Confirm / Back | A / B (or ✕ / ○, swappable for Nintendo) | Enter / Esc |
-| Favourite · Search | X · Y | F · / |
-| Tabs · Pages | LB/RB · LT/RT | Q/E · PgUp/PgDn |
+| Favourite · Search / options | X · Y | F · / |
+| Tabs · Pages | LB/RB · LT/RT | Q/E · [ / ] (or PgUp/PgDn) |
 | Menu | Start | Tab |
 | In-game menu | Guide, or Select + Start | Esc / F1 |
 | Fast-forward | Select + RB (toggle) | hold Tab |
@@ -110,6 +116,7 @@ Data lives in `~/Library/Application Support/MaterialFrontend`, `%APPDATA%\Mater
 - Vulkan / GLES hardware contexts for cores that don't offer OpenGL.
 - RetroAchievements.
 - Battle.net, itch.io and Amazon Games app (Windows) sources.
+- Owned-but-not-installed games from Heroic, GOG Galaxy and Epic.
 - A direct Xodus integration, once it publishes an interface for other apps.
 
 BIOS files, firmware and keys are never downloaded; you supply your own dumps.
