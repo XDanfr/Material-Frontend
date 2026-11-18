@@ -12,13 +12,28 @@ import kotlin.test.assertTrue
 
 class AddOnFilterTest {
     @Test fun recognisesSwitchAddOns() {
-        assertFalse(AddOns.isAddOn("Super Mario Odyssey [0100000000010000][v0].nsp"))
-        assertTrue(AddOns.isAddOn("Super Mario Odyssey [0100000000010800][v917504].nsp"))
-        assertTrue(AddOns.isAddOn("Mario Kart 8 Deluxe [0100152000023001][v0].nsp"))
-        assertTrue(AddOns.isAddOn("Zelda TOTK (Update) v1.2.1.nsp"))
-        assertTrue(AddOns.isAddOn("Game [DLC] Pack.nsz"))
-        assertFalse(AddOns.isAddOn("Patchwork Heroes (USA).iso"))
-        assertFalse(AddOns.isAddOn("Super Mario Bros. (World).nes"))
+        assertFalse(AddOns.isAddOn("Super Mario Odyssey [0100000000010000][v0].nsp", "switch"))
+        assertTrue(AddOns.isAddOn("Super Mario Odyssey [0100000000010800][v917504].nsp", "switch"))
+        assertTrue(AddOns.isAddOn("Mario Kart 8 Deluxe [0100152000023001][v0].nsp", "switch"))
+        assertTrue(AddOns.isAddOn("Zelda TOTK (Update) v1.2.1.nsp", "switch"))
+        assertTrue(AddOns.isAddOn("Game [DLC] Pack.nsz", "switch2"))
+        assertFalse(AddOns.isAddOn("Patchwork Heroes (USA).iso", "psp"))
+        assertFalse(AddOns.isAddOn("Super Mario Bros. (World).nes", "nes"))
+    }
+
+    @Test fun switchRulesStayOnSwitch() {
+        assertFalse(AddOns.isAddOn("Some Game [0100000000010800].iso", "ps2"))
+        assertFalse(AddOns.isAddOn("Some Game [v131072].iso", "gc"))
+    }
+
+    @Test fun recognisesPs4AndXbox360Updates() {
+        assertFalse(AddOns.isAddOn("UP0001-CUSA12345_00-GAME000000000000-A0100-V0100.pkg", "ps4"))
+        assertTrue(AddOns.isAddOn("UP0001-CUSA12345_00-GAME000000000000-A0105-V0100.pkg", "ps4"))
+        assertTrue(AddOns.isAddOn("Bloodborne_patch.pkg", "ps4"))
+        assertTrue(AddOns.isAddOn("TU_10BD0K1_0000014000000.00000000000O1", "xbox360"))
+        assertTrue(AddOns.isAddOn("Blur TU2.xex", "xbox360"))
+        assertFalse(AddOns.isAddOn("Turok.iso", "xbox360"))
+        assertFalse(AddOns.isAddOn("UP0001-CUSA12345_00-GAME000000000000-A0105-V0100.pkg", "ps3"))
     }
 
     @Test fun scannerSkipsAddOnsAndAddOnFolders() {
