@@ -222,10 +222,13 @@ fun Onboarding() {
         }
     }
 
+    // The collector lives for the whole setup, but each step has its own focus state and position:
+    // always call this composition's handler, not the one captured when setup started.
+    val latestHandle by rememberUpdatedState<(Nav) -> Unit>({ n -> handle(n) })
     LaunchedEffect(Unit) {
         app.controllers.events.collect { e ->
             if (e.nav == Nav.CONFIRM) { pressPulse++; delay(PRESS_DELAY_MS) }
-            handle(e.nav)
+            latestHandle(e.nav)
         }
     }
 
