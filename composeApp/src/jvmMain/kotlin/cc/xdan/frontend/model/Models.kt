@@ -148,6 +148,9 @@ data class Settings(
     val dismissedDiscoveries: Set<String> = emptySet(),
     /** Games removed from the library (rescans skip them). */
     val removedGames: Set<String> = emptySet(),
+    /** Frontend controls: Nav name → AWT key code / Pad name (added to the defaults). */
+    val uiKeyBindings: Map<String, Long> = emptyMap(),
+    val uiPadBindings: Map<String, String> = emptyMap(),
     /** Read existing ES-DE / EmulationStation gamelist.xml and Pegasus metadata files. */
     val importGamelists: Boolean = true,
     val emulators: List<EmulatorConfig> = emptyList(),

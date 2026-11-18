@@ -57,6 +57,10 @@ class ControllerManager {
 
     /** While a modal dialog is up, navigation goes only to [modalEvents] (screens underneath don't react). */
     @Volatile var modal = false
+    /** Custom controller buttons for the frontend's controls. */
+    @Volatile var padBindings: Map<Pad, Nav> = emptyMap()
+    /** Set while Settings waits for "press the button to use": the next pad press goes here instead. */
+    @Volatile var padCapture: ((Pad) -> Unit)? = null
     private val _modalEvents = MutableSharedFlow<NavEvent>(extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val modalEvents: SharedFlow<NavEvent> = _modalEvents.asSharedFlow()
     private fun send(e: NavEvent) { if (modal) _modalEvents.tryEmit(e) else _events.tryEmit(e) }
@@ -218,7 +222,8 @@ class ControllerManager {
     private fun emit(p: Pad, repeat: Boolean, family: ControllerFamily, instance: Int? = null) {
         val confirmPad = if (nintendoConfirm) Pad.EAST else Pad.SOUTH
         val backPad = if (nintendoConfirm) Pad.SOUTH else Pad.EAST
-        val nav = when (p) {
+        padCapture?.let { cb -> if (!repeat && !gameMode) { padCapture = null; cb(p); return } }
+        val nav = padBindings[p].takeUnless { gameMode } ?: when (p) {
             Pad.UP -> Nav.UP; Pad.DOWN -> Nav.DOWN; Pad.LEFT -> Nav.LEFT; Pad.RIGHT -> Nav.RIGHT
             confirmPad -> Nav.CONFIRM; backPad -> Nav.BACK
             Pad.WEST -> Nav.ALT; Pad.NORTH -> Nav.SEARCH

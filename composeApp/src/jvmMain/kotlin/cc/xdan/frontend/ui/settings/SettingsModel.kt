@@ -144,6 +144,17 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
             PanelSetting("padList", "Controllers", null, "${padCount} connected") { ControllersPanel() },
             ToggleSetting("nintendo", "Nintendo-style confirm", "Right button confirms, bottom goes back", s.nintendoConfirm) { v -> set { it.copy(nintendoConfirm = v) } },
             ToggleSetting("autoBig", "Open Big Screen when a controller connects", null, s.bigScreenOnController) { v -> set { it.copy(bigScreenOnController = v) } },
+        ) + cc.xdan.frontend.input.UiBindings.actions.map { (nav, label) ->
+            val keys = listOfNotNull(s.uiKeyBindings[nav.name]?.let { cc.xdan.frontend.input.UiBindings.keyName(it) }) +
+                cc.xdan.frontend.input.UiBindings.defaultKeys[nav].orEmpty().filter { k -> k.keyCode !in s.uiKeyBindings.filterKeys { it != nav.name }.values }
+                    .map { cc.xdan.frontend.input.UiBindings.keyName(it.keyCode) }
+            val pad = s.uiPadBindings[nav.name]?.let { runCatching { cc.xdan.frontend.input.Pad.valueOf(it) }.getOrNull() }
+            ActionSetting("bind-${nav.name}", "Control: $label",
+                keys.distinct().joinToString(" / ") + (pad?.let { " · " + cc.xdan.frontend.input.UiBindings.padName(it, app.controllers.activeFamily.value) } ?: ""),
+                "Change", { app.startBinding(nav, label) })
+        } + listOf(
+            ActionSetting("bindReset", "Reset controls", "Back to the default keys and buttons", "Reset",
+                { set { it.copy(uiKeyBindings = emptyMap(), uiPadBindings = emptyMap()) } }, destructive = true),
         )
         SettingsSection.SCRAPING -> listOf(
             PanelSetting("keys", "Accounts and keys", "SteamGridDB and IGDB",

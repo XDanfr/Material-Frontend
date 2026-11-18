@@ -1,5 +1,6 @@
 package cc.xdan.frontend
 
+import cc.xdan.frontend.input.Nav
 import cc.xdan.frontend.model.Usage
 import cc.xdan.frontend.input.Pad
 import cc.xdan.frontend.input.RetroButton
@@ -130,7 +131,7 @@ class AppController {
         if (settings.value.seedColor == 0xFF5B5BD6) settings.update { it.copy(seedColor = 0xFF6750A4) }
         controllers.nintendoConfirm = settings.value.nintendoConfirm
         Platforms.setCustom(settings.value.customSystems)
-        scope.launch { settings.state.collect { Platforms.setCustom(it.customSystems); refreshRunnable() } }
+        scope.launch { settings.state.collect { Platforms.setCustom(it.customSystems); refreshRunnable(); controllers.padBindings = cc.xdan.frontend.input.UiBindings.padOverrides(it.uiPadBindings) } }
         controllers.start()
         // Pick up games added since last time (new ROMs, newly installed Steam/launcher games).
         if (settings.value.onboardingComplete && settings.value.rescanOnStartup) rescan()
@@ -157,6 +158,22 @@ class AppController {
     data class Discovered(val key: String, val name: String, val detail: String, val emulator: DetectedEmulator? = null)
     private val _discoveries = MutableStateFlow<List<Discovered>>(emptyList())
     val discoveries: StateFlow<List<Discovered>> = _discoveries.asStateFlow()
+
+    // ---------- Frontend control remapping ----------
+    /** Set while waiting for a key to bind (Main's key handler delivers the next key-down here). */
+    @Volatile var keyCapture: ((androidx.compose.ui.input.key.Key) -> Unit)? = null
+    private val _binding = MutableStateFlow<Nav?>(null)
+    /** The action currently waiting for a key or button. */
+    val binding: StateFlow<Nav?> = _binding.asStateFlow()
+
+    fun startBinding(nav: Nav, label: String) {
+        _binding.value = nav
+        toast("Press a key or controller button for “$label” (Esc cancels)")
+        keyCapture = { k -> updateSettings { it.copy(uiKeyBindings = cc.xdan.frontend.input.UiBindings.withKey(it.uiKeyBindings, nav, k.keyCode)) }; endBinding("$label → ${cc.xdan.frontend.input.UiBindings.keyName(k.keyCode)}") }
+        controllers.padCapture = { p -> updateSettings { it.copy(uiPadBindings = cc.xdan.frontend.input.UiBindings.withPad(it.uiPadBindings, nav, p)) }; endBinding("$label → ${cc.xdan.frontend.input.UiBindings.padName(p, controllers.activeFamily.value)}") }
+    }
+    private fun endBinding(msg: String) { keyCapture = null; controllers.padCapture = null; _binding.value = null; toast(msg) }
+    fun cancelBinding() { keyCapture = null; controllers.padCapture = null; _binding.value = null; toast("Cancelled") }
 
     internal fun testDiscoveries(list: List<Discovered>) { _discoveries.value = list }
 

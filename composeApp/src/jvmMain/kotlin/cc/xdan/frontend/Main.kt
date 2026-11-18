@@ -77,6 +77,11 @@ private fun isFullscreenShortcut(e: KeyEvent): Boolean =
 internal fun handleKey(app: AppController, e: KeyEvent): Boolean {
     val down = e.type == KeyEventType.KeyDown
     if (down && isFullscreenShortcut(e)) { app.fullscreen.value = !app.fullscreen.value; return true }
+    // Settings is waiting for a key to bind (Escape cancels).
+    app.keyCapture?.let { cb ->
+        if (down) { app.keyCapture = null; if (e.key != Key.Escape) cb(e.key) else app.cancelBinding() }
+        return true
+    }
     if (!app.settings.value.onboardingComplete) {
         // Setup: one navigation path for keyboard and controller (Backspace left alone for text fields).
         if (e.isCtrlPressed || e.isMetaPressed) return false
@@ -119,13 +124,7 @@ internal fun handleKey(app: AppController, e: KeyEvent): Boolean {
         return pad != null || nav != null
     }
 
-    val nav = when (e.key) {
-        Key.DirectionUp -> Nav.UP; Key.DirectionDown -> Nav.DOWN; Key.DirectionLeft -> Nav.LEFT; Key.DirectionRight -> Nav.RIGHT
-        Key.Enter, Key.Spacebar -> Nav.CONFIRM; Key.Escape, Key.Backspace -> Nav.BACK
-        Key.F -> Nav.ALT; Key.Slash -> Nav.SEARCH; Key.Tab -> Nav.MENU; Key.F1 -> Nav.GUIDE
-        Key.Q -> Nav.PREV_TAB; Key.E -> Nav.NEXT_TAB; Key.PageUp, Key.LeftBracket -> Nav.PREV_PAGE; Key.PageDown, Key.RightBracket -> Nav.NEXT_PAGE
-        else -> null
-    } ?: return false
+    val nav = cc.xdan.frontend.input.UiBindings.navForKey(e.key, app.settings.value.uiKeyBindings) ?: return false
     if (!down) return true
     app.controllers.onKey(nav, null, true)
     return true
