@@ -100,6 +100,15 @@ class ScreenshotTest {
         repeat(30) { general.render(gt); gt += 16_000_000L }
         File(out, "settings-general.png").writeBytes(general.render(gt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         general.close()
+        val ingame = ImageComposeScene(1440, 700, Density(1f)) {
+            CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
+                MaterialFrontendTheme(app.settings.value, null) { SettingsScreen(onBack = {}, initial = SettingsSection.PLAYBACK) }
+            }
+        }
+        var it2 = 0L
+        repeat(30) { ingame.render(it2); it2 += 16_000_000L }
+        File(out, "settings-ingame.png").writeBytes(ingame.render(it2).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        ingame.close()
 
         // Big Screen → Settings tab (two tab steps right) and XMB → Settings category.
         app.updateSettings { it.copy(onboardingComplete = true) }

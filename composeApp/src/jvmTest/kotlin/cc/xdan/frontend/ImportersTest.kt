@@ -130,6 +130,8 @@ class ImportersTest {
     }
 
     @Test fun findsSteamInCrossOverBottles() {
+        // macOS/Linux features (Windows runs Windows Steam natively); "d:" isn't even a valid filename there.
+        if (cc.xdan.frontend.data.HostOs.current == cc.xdan.frontend.data.HostOs.WINDOWS) return
         val bottles = tmp(); val bottle = File(bottles, "Steam").apply { mkdirs() }
         val steam = File(bottle, "drive_c/Program Files (x86)/Steam")
         val dLib = tmp()   // a second library on D: (dosdevices/d: → elsewhere)
@@ -147,6 +149,8 @@ class ImportersTest {
     }
 
     @Test fun findsSteamOnParallelsSharedDrives() {
+        // macOS/Linux features (Windows runs Windows Steam natively); "d:" isn't even a valid filename there.
+        if (cc.xdan.frontend.data.HostOs.current == cc.xdan.frontend.data.HostOs.WINDOWS) return
         val volumes = tmp()
         val c = File(volumes, "[C] Windows 11").apply { mkdirs() }
         val d = File(volumes, "[D] Games").apply { mkdirs() }
