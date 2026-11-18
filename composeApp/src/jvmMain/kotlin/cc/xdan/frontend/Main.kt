@@ -123,7 +123,7 @@ internal fun handleKey(app: AppController, e: KeyEvent): Boolean {
         Key.DirectionUp -> Nav.UP; Key.DirectionDown -> Nav.DOWN; Key.DirectionLeft -> Nav.LEFT; Key.DirectionRight -> Nav.RIGHT
         Key.Enter, Key.Spacebar -> Nav.CONFIRM; Key.Escape, Key.Backspace -> Nav.BACK
         Key.F -> Nav.ALT; Key.Slash -> Nav.SEARCH; Key.Tab -> Nav.MENU; Key.F1 -> Nav.GUIDE
-        Key.Q -> Nav.PREV_TAB; Key.E -> Nav.NEXT_TAB; Key.PageUp -> Nav.PREV_PAGE; Key.PageDown -> Nav.NEXT_PAGE
+        Key.Q -> Nav.PREV_TAB; Key.E -> Nav.NEXT_TAB; Key.PageUp, Key.LeftBracket -> Nav.PREV_PAGE; Key.PageDown, Key.RightBracket -> Nav.NEXT_PAGE
         else -> null
     } ?: return false
     if (!down) return true

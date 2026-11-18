@@ -115,12 +115,14 @@ fun Modifier.focusEmphasis(focused: Boolean, baseCorner: Dp = 12.dp, focusedCorn
     val s by animateFloatAsState(if (focused) scale else 1f, MaterialTheme.motionScheme.fastSpatialSpec())
     val corner by animateDpAsState(if (focused) focusedCorner else baseCorner, MaterialTheme.motionScheme.fastSpatialSpec())
     val outline by animateColorAsState(if (focused) MaterialTheme.colorScheme.primary else Color.Transparent, MaterialTheme.motionScheme.fastEffectsSpec())
-    val shape = RoundedCornerShape(corner)
+    val pad by animateDpAsState(if (focused) 3.dp else 0.dp, MaterialTheme.motionScheme.fastSpatialSpec())
+    // Nested radii: the content sits [pad] inside the outline, so its corners are smaller by [pad]
+    // (same radius would leave a sliver of gap at each corner).
     return this
         .graphicsLayer { scaleX = s; scaleY = s }
-        .border(3.dp, outline, shape)
-        .padding(if (focused) 3.dp else 0.dp)
-        .clip(shape)
+        .border(3.dp, outline, RoundedCornerShape(corner))
+        .padding(pad)
+        .clip(RoundedCornerShape((corner - pad).coerceAtLeast(0.dp)))
 }
 
 /**
@@ -174,7 +176,7 @@ fun glyphLabel(p: Pad, f: ControllerFamily): String = when (f) {
     }
     ControllerFamily.KEYBOARD -> when (p) {
         Pad.SOUTH -> "Enter"; Pad.EAST -> "Esc"; Pad.WEST -> "F"; Pad.NORTH -> "/"
-        Pad.LB -> "Q"; Pad.RB -> "E"; Pad.LT -> "PgUp"; Pad.RT -> "PgDn"; Pad.SELECT -> "Shift"; Pad.START -> "Tab"; Pad.GUIDE -> "F1"
+        Pad.LB -> "Q"; Pad.RB -> "E"; Pad.LT -> "["; Pad.RT -> "]"; Pad.SELECT -> "Shift"; Pad.START -> "Tab"; Pad.GUIDE -> "F1"
         Pad.UP -> "↑"; Pad.DOWN -> "↓"; Pad.LEFT -> "←"; Pad.RIGHT -> "→"
         else -> p.name
     }
