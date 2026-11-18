@@ -62,7 +62,13 @@ compose.desktop {
         jvmArgs += listOf("--enable-native-access=ALL-UNNAMED", "-Xss4m")
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
+            // Only this OS's formats: listing AppImage on macOS makes packageDmg collide with packageAppImage's output.
+            val hostOs = System.getProperty("os.name").lowercase()
+            when {
+                hostOs.contains("mac") -> targetFormats(TargetFormat.Dmg)
+                hostOs.contains("win") -> targetFormats(TargetFormat.Msi, TargetFormat.Exe)
+                else -> targetFormats(TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
+            }
             packageName = "Material Frontend"
             packageVersion = "1.0.0" // jpackage needs major >= 1; the app itself reports 0.1 (WIP)
             description = "Material 3 Expressive emulation frontend"

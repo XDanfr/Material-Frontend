@@ -32,7 +32,10 @@ jobs:
 
       - name: Linux packaging tools
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm fakeroot
+        # rpm/fakeroot for packaging; GL/fontconfig/X libs so Skia loads in headless tests (missing on the arm64 image).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot libgl1 libegl1 libfontconfig1 libfreetype6 libx11-6 libxext6 libxrender1 libxi6 libxtst6 libxrandr2
 
       - name: Test
         run: ./gradlew :composeApp:jvmTest --no-configuration-cache
