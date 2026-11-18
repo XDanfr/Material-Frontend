@@ -190,11 +190,15 @@ fun BigScreen() {
     }
     var platformIdx by remember { mutableIntStateOf(0) }
     var gridIdx by remember { mutableIntStateOf(0) }
+    // The system list shrinks when its last game goes (e.g. un-hiding the only hidden game removes "Hidden"):
+    // fall back to All rather than pointing past the end.
+    if (platformIdx > platforms.lastIndex) { platformIdx = 0; gridIdx = 0 }
     var gridCols by remember { mutableIntStateOf(6) }
     val libGames = remember(games, platformIdx) {
         val pid = platforms.getOrNull(platformIdx)
         (if (pid == HIDDEN) games.filter { it.hidden } else games.filter { !it.hidden && (pid == null || it.platformId == pid) }).sortedBy { it.sortKey }
     }
+    if (gridIdx > libGames.lastIndex) gridIdx = libGames.lastIndex.coerceAtLeast(0)
     val overlays = remember { mutableStateListOf<Overlay>() }
     var searchResultsFocus by remember { mutableStateOf<Game?>(null) }
 
@@ -604,7 +608,7 @@ private fun LibraryTab(platforms: List<String?>, platformIdx: Int, games: List<G
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 16.dp)) {
             ButtonGlyph(Pad.LT, family)
-            Text(platforms[platformIdx]?.let { if (it == HIDDEN) "Hidden games" else Platforms.get(it).name } ?: "All systems", style = MaterialTheme.typography.headlineMediumEmphasized)
+            Text(platforms.getOrNull(platformIdx)?.let { if (it == HIDDEN) "Hidden games" else Platforms.get(it).name } ?: "All systems", style = MaterialTheme.typography.headlineMediumEmphasized)
             ButtonGlyph(Pad.RT, family)
             Text("${games.size} games", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
