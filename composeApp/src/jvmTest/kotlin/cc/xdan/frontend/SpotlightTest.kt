@@ -19,7 +19,8 @@ class SpotlightTest {
     @Test fun modes() {
         assertEquals(listOf("c", "a"), featuredGames(games, SpotlightMode.RECENT).map { it.id })
         assertEquals(listOf("b"), featuredGames(games, SpotlightMode.FAVOURITES).map { it.id })
-        assertEquals(listOf("b", "a"), featuredGames(games, SpotlightMode.CHOSEN, listOf("b", "u", "a")).map { it.id })
+        assertEquals(listOf("b", "u", "a"), featuredGames(games, SpotlightMode.CHOSEN, listOf("b", "u", "a")).map { it.id }, "chosen keeps confirmed uninstalled titles")
+        assertEquals(listOf("a"), featuredGames(games, SpotlightMode.RECENT, excluded = setOf("c")).map { it.id }, "hidden from spotlight")
         assertEquals(setOf("a", "b", "c"), featuredGames(games, SpotlightMode.RANDOM, seed = 7).map { it.id }.toSet())
         // Nothing chosen yet → falls back rather than showing an empty spotlight.
         assertTrue(featuredGames(games, SpotlightMode.CHOSEN).isNotEmpty())
