@@ -122,7 +122,7 @@ class RomScanner {
                 folderPlatform != null -> folderPlatform.takeIf { ext in it.extensions }
                 else -> Platforms.uniqueExtensions[ext]
             }
-            if (platform != null && AddOns.isAddOn(f.name)) continue
+            if (platform != null && AddOns.isAddOn(f.name, platform.id)) continue
             if (platform == null && ext !in quietExt) emit(f, null) else if (platform != null) emit(f, platform)
         }
     }
@@ -140,12 +140,24 @@ object AddOns {
 
     fun isAddOnFolder(name: String) = name.lowercase() in folders
 
-    fun isAddOn(fileName: String): Boolean {
-        // Switch title IDs: base games end in 000, updates in 800, DLC in anything else.
-        titleId.find(fileName)?.let { if (!it.groupValues[1].endsWith("000")) return true }
+    // PS4 content packages: -A0100 is the shipped app version; anything higher is a patch.
+    private val ps4Version = Regex("-A(\\d{4})-V\\d{4}", RegexOption.IGNORE_CASE)
+
+    fun isAddOn(fileName: String, platformId: String): Boolean {
         if (tag.containsMatchIn(fileName)) return true
-        // Switch update dumps carry their version as [v65536] and up; base games are [v0].
-        version.find(fileName)?.groupValues?.get(1)?.toLongOrNull()?.let { if (it >= 65536) return true }
+        when (platformId) {
+            "switch", "switch2" -> {
+                // Title IDs: base games end in 000, updates in 800, DLC in anything else.
+                titleId.find(fileName)?.let { if (!it.groupValues[1].endsWith("000")) return true }
+                // Update dumps carry their version as [v65536] and up; base games are [v0].
+                version.find(fileName)?.groupValues?.get(1)?.toLongOrNull()?.let { if (it >= 65536) return true }
+            }
+            "ps4" -> {
+                ps4Version.find(fileName)?.groupValues?.get(1)?.let { if (it != "0100") return true }
+                if (Regex("[-_ ]patch\\b", RegexOption.IGNORE_CASE).containsMatchIn(fileName)) return true
+            }
+            "xbox360" -> if (Regex("^TU[_ \\d]", RegexOption.IGNORE_CASE).containsMatchIn(fileName) || Regex("\\bTU\\d+\\b", RegexOption.IGNORE_CASE).containsMatchIn(fileName)) return true
+        }
         return false
     }
 }
