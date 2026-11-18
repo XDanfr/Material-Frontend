@@ -19,7 +19,9 @@ A Material 3 Expressive emulation frontend for Windows, macOS and Linux, built w
   - EA app (`__Installer/installerdata.xml`).
   - Xbox app (GDK packages with a `MicrosoftGame.config`, launched via `shell:AppsFolder`).
   - GOG Galaxy and Ubisoft Connect (registry).
-  - Heroic (Epic, GOG and Amazon).
+  - Heroic (Epic, GOG and Amazon), including games you own but haven't installed (Install hands them to Heroic).
+  - Battle.net (`product.db`, launched with `battlenet://`).
+  - itch.io (install receipts; the game is launched directly).
   - Lutris.
   - Xbox games on Linux through Xodus/Nexus show up via Nexus's "Add to Steam" shortcuts.
 - **Existing setups:** ES-DE / EmulationStation `gamelist.xml` (including ES-DE's `downloaded_media`) and Pegasus `metadata.pegasus.txt` metadata and art are imported. They only fill gaps, so your own edits are kept.
@@ -40,6 +42,11 @@ A Material 3 Expressive emulation frontend for Windows, macOS and Linux, built w
 - **Big Screen:** a spotlight hero carousel, Up from the top reaches the tabs, and More… hides, renames or removes a game (removals stick across rescans; hidden games have their own filter).
 - **XMB:** settings are pages with a PS3-style options sidebar; Triangle/Options opens a game's options (favourite, launch with, hide, remove). Backgrounds: ribbon waves with sparkles, floating Material shapes, squiggles or a mix, lit by the time of day.
 - **Remappable controls:** every frontend action can get its own key and controller button (Settings → Controllers).
+- **Big Screen extras:** a time-of-day greeting with your name (or your Steam name), a spotlight you can set to recent, favourites, random or chosen games, and a centred search you can type into with a keyboard.
+- **Power menu:** exit, switch mode, fullscreen, sleep, restart and shut down — the button after the tabs in Big Screen, the last category in the XMB.
+- **RetroAchievements:** add your username and Web API key (Settings → Scraping) to see your progress on game pages. Cartridge systems are identified with RA's own hash.
+- **In the background:** controllers are ignored while another app is in front, and the built-in player pauses until you come back.
+- **Renaming** a game re-fetches its artwork when SteamGridDB or IGDB is set up.
 
 ## Build and run
 
@@ -114,9 +121,9 @@ Data lives in `~/Library/Application Support/MaterialFrontend`, `%APPDATA%\Mater
 
 **Next:**
 - Vulkan / GLES hardware contexts for cores that don't offer OpenGL.
-- RetroAchievements.
-- Battle.net, itch.io and Amazon Games app (Windows) sources.
-- Owned-but-not-installed games from Heroic, GOG Galaxy and Epic.
+- Unlocking RetroAchievements while playing in the built-in player (needs the rcheevos runtime); disc-based systems for RA.
+- Owned-but-not-installed games from GOG Galaxy and the Epic launcher themselves (Heroic covers both today).
+- Amazon Games app (Windows).
 - A direct Xodus integration, once it publishes an interface for other apps.
 
 BIOS files, firmware and keys are never downloaded; you supply your own dumps.
