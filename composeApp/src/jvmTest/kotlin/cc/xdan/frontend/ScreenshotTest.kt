@@ -90,6 +90,34 @@ class ScreenshotTest {
         File(out, "press-details.png").writeBytes(press.render(pt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
         press.close()
 
+        // Settings → General (shared list, accent chips) in the Library view.
+        val general = ImageComposeScene(1440, 1000, Density(1f)) {
+            CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
+                MaterialFrontendTheme(app.settings.value, null) { SettingsScreen(onBack = {}, initial = SettingsSection.GENERAL) }
+            }
+        }
+        var gt = 0L
+        repeat(30) { general.render(gt); gt += 16_000_000L }
+        File(out, "settings-general.png").writeBytes(general.render(gt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        general.close()
+
+        // Big Screen → Settings tab (two tab steps right) and XMB → Settings category.
+        app.updateSettings { it.copy(onboardingComplete = true) }
+        app.mode.value = UiMode.BIGSCREEN
+        val bs = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        var bt = 0L
+        fun bpump(n: Int) = repeat(n) { bs.render(bt); bt += 16_000_000L; Thread.sleep(3) }
+        bpump(30); app.controllers.onKey(Nav.NEXT_TAB, null, true); bpump(10); app.controllers.onKey(Nav.NEXT_TAB, null, true); bpump(60)
+        File(out, "bigscreen-settings.png").writeBytes(bs.render(bt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        bs.close()
+        app.mode.value = UiMode.XMB
+        val xs = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        var xt = 0L
+        fun xpump(n: Int) = repeat(n) { xs.render(xt); xt += 16_000_000L; Thread.sleep(3) }
+        xpump(30); app.controllers.onKey(Nav.LEFT, null, true); xpump(60)
+        File(out, "xmb-settings.png").writeBytes(xs.render(xt).encodeToData(EncodedImageFormat.PNG)!!.bytes)
+        xs.close()
+
         // Settings → About (credit, link, reset options).
         val about = ImageComposeScene(1440, 1100, Density(1f)) {
             CompositionLocalProvider(LocalApp provides app, LocalArtworkSeed provides remember { mutableStateOf(null) }) {
