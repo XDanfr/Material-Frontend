@@ -52,3 +52,28 @@ class BigScreenNavTest {
         scene.close()
     }
 }
+
+/** Un-hiding the only hidden game removes the Hidden filter while it's selected: no crash, back to All. */
+class BigScreenHiddenFilterTest {
+    @Test fun unhideLastHiddenGame() {
+        System.getenv("MF_DATA_DIR") ?: return
+        val app = AppController()
+        app.updateSettings { it.copy(onboardingComplete = true) }
+        app.library.update { listOf(Game("h0", "A", "snes", path = "/h/0"), Game("h1", "B", "snes", path = "/h/1", hidden = true)) }
+        app.mode.value = UiMode.BIGSCREEN
+        val scene = ImageComposeScene(1440, 900, Density(1f)) { App(app, showSplash = false) }
+        var t = 0L
+        fun pump(n: Int = 20) = repeat(n) { scene.render(t); t += 16_000_000L; Thread.sleep(3) }
+        fun press(nav: Nav, pad: Pad? = null) { app.controllers.onKey(nav, pad, true); pump(4); app.controllers.onKey(nav, pad, false); pump(30) }
+        pump(60)
+        press(Nav.UP); press(Nav.RIGHT); press(Nav.DOWN)          // Library
+        press(Nav.NEXT_PAGE); press(Nav.NEXT_PAGE)                // All → SNES → Hidden
+        press(Nav.CONFIRM, Pad.SOUTH); repeat(3) { press(Nav.RIGHT) }; press(Nav.CONFIRM, Pad.SOUTH)   // Details → More…
+        press(Nav.CONFIRM, Pad.SOUTH)                              // Show in library
+        val deadline = System.currentTimeMillis() + 3000
+        while (app.library.value.any { it.hidden } && System.currentTimeMillis() < deadline) pump(5)
+        pump(30)   // recompose with the shorter system list (used to throw)
+        assertTrue(app.library.value.none { it.hidden })
+        scene.close()
+    }
+}
