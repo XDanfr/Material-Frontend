@@ -534,18 +534,21 @@ private fun ShelfCard(g: Game, rowActive: Boolean, focused: Boolean, onClick: ()
         .focusEmphasis(focused, baseCorner = 16.dp, focusedCorner = 28.dp, scale = if (expand) 1.02f else 1.1f)
         .clickable(onClick = onClick)) {
         // Box art stays underneath (cropped) so the change never shows an empty frame.
+        // The wide layer is always in the tree (only its images/alpha change): adding and removing
+        // nodes inside a scrolling row while it resizes trips a Compose layout crash.
         CoverArt(g, Modifier.fillMaxSize())
-        if (expand || wideAlpha > 0f) {
-            val hero by rememberImage(wideArt ?: g.assets.cover, if (wideArt != null) 1280 else 400)
-            val logo by rememberImage(g.assets.logo, 600)
-            Box(Modifier.fillMaxSize().alpha(wideAlpha).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
-                hero?.let { Image(it, g.title, Modifier.fillMaxSize().then(if (wideArt == null) Modifier.blur(28.dp) else Modifier), contentScale = ContentScale.Crop) }
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
-                val l = logo
-                Box(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
-                    if (l != null) Image(l, g.title, Modifier.heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
-                    else Text(g.title, style = MaterialTheme.typography.titleLargeEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
+        val loadWide = expand || wideAlpha > 0f
+        val hero by rememberImage(if (loadWide) wideArt ?: g.assets.cover else null, if (wideArt != null) 1280 else 400)
+        val logo by rememberImage(if (loadWide) g.assets.logo else null, 600)
+        val clear = androidx.compose.ui.graphics.painter.ColorPainter(Color.Transparent)
+        Box(Modifier.fillMaxSize().alpha(wideAlpha).background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = if (loadWide) 1f else 0f))) {
+            Image(hero?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, g.title,
+                Modifier.fillMaxSize().then(if (wideArt == null) Modifier.blur(28.dp) else Modifier), contentScale = ContentScale.Crop)
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
+            Box(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
+                Image(logo?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, g.title,
+                    Modifier.heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
+                Text(g.title, Modifier.alpha(if (logo == null) 1f else 0f), style = MaterialTheme.typography.titleLargeEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
