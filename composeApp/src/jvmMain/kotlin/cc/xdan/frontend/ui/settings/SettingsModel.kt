@@ -97,6 +97,9 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
             )
             UiMode.BIGSCREEN -> listOf(
                 ToggleSetting("bsClock", "Show clock", null, s.bigScreenClock) { v -> set { it.copy(bigScreenClock = v) } },
+                ChoiceSetting("spotlight", "Spotlight shows", "Pick games for 'Chosen' from a game's More… menu",
+                    cc.xdan.frontend.model.SpotlightMode.entries.map { it.label }, s.spotlight.ordinal,
+                    { i -> set { it.copy(spotlight = cc.xdan.frontend.model.SpotlightMode.entries[i]) } }),
                 ToggleSetting("bsHints", "Show button hints", null, s.bigScreenHints) { v -> set { it.copy(bigScreenHints = v) } },
             )
             UiMode.XMB -> listOf(

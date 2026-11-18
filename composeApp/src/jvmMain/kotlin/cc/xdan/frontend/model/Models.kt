@@ -186,6 +186,8 @@ data class Settings(
     // Theme-specific
     val bigScreenClock: Boolean = true,
     val bigScreenHints: Boolean = true,
+    val spotlight: SpotlightMode = SpotlightMode.RECENT,
+    val spotlightGames: List<String> = emptyList(),
     val xmbWaves: Boolean = true,
     val xmbBackground: XmbBackground = XmbBackground.WAVES,
     val xmbHints: Boolean = true,
@@ -194,4 +196,7 @@ data class Settings(
 
 /** XMB backdrops. */
 @Serializable
+/** What the Big Screen spotlight shows. */
+enum class SpotlightMode(val label: String) { RECENT("Recently played"), FAVOURITES("Favourites"), RANDOM("Random"), CHOSEN("Chosen games") }
+
 enum class XmbBackground(val label: String) { WAVES("Waves"), SHAPES("Shapes"), SQUIGGLES("Squiggles"), MIX("Mix"), OFF("Off") }

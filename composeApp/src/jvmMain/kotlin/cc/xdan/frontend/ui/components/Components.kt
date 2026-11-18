@@ -254,9 +254,12 @@ fun ButtonGlyph(pad: Pad, family: ControllerFamily, modifier: Modifier = Modifie
 fun HintBar(hints: List<Pair<Pad, String>>, family: ControllerFamily, modifier: Modifier = Modifier) {
     Surface(modifier, color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f), shape = RoundedCornerShape(28.dp)) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            hints.forEach { (pad, label) ->
+            // A hint with an empty label shares the next hint's label (e.g. LB RB  Tabs).
+            val groups = ArrayList<Pair<List<Pad>, String>>(); var pending = ArrayList<Pad>()
+            hints.forEach { (pad, label) -> pending += pad; if (label.isNotEmpty()) { groups += pending to label; pending = ArrayList() } }
+            groups.forEach { (pads, label) ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ButtonGlyph(pad, family)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { pads.forEach { ButtonGlyph(it, family) } }
                     Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 }
             }

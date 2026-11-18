@@ -137,7 +137,7 @@ private sealed interface Overlay {
 }
 
 fun buildShelves(games: List<Game>): List<Shelf> {
-    val visible = games.filter { !it.hidden }
+    val visible = games.filter { !it.hidden && it.installed }  // Home is what you can play now; Library shows everything
     val out = ArrayList<Shelf>()
     visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed }.take(15).takeIf { it.isNotEmpty() }?.let { out += Shelf("Continue playing", it) }
     visible.filter { it.favorite }.sortedBy { it.sortKey }.takeIf { it.isNotEmpty() }?.let { out += Shelf("Favourites", it) }
@@ -160,7 +160,8 @@ fun BigScreen() {
     val shelves = remember(games) { buildShelves(games) }
     var tab by remember { mutableStateOf(Tab.HOME) }
     // Home: row -1 is the spotlight carousel; Up from the top of any tab focuses the tab bar.
-    val featured = remember(games) { featuredGames(games) }
+    val spotSeed = remember { System.nanoTime() }  // Random: new picks each launch, stable while open
+    val featured = remember(games, settings.spotlight, settings.spotlightGames) { featuredGames(games, settings.spotlight, settings.spotlightGames, spotSeed) }
     var row by remember { mutableIntStateOf(-1) }
     var spotIdx by remember { mutableIntStateOf(0) }
     var barFocus by remember { mutableStateOf(false) }
@@ -322,7 +323,7 @@ fun BigScreen() {
                         onClick = { r, c -> if (row == r && (cols[r] ?: 0) == c) shelves[r].games.getOrNull(c)?.let { overlays += Overlay.Details(it) } else { row = r; cols[r] = c } })
                     Tab.SETTINGS -> ControllerSettings(UiMode.BIGSCREEN, active = overlays.isEmpty() && !barFocus, modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp),
                         onExitTop = { barFocus = true })
-                    Tab.LIBRARY -> LibraryTab(platforms, platformIdx, libGames, gridIdx, onCols = { gridCols = it }, onClick = { i -> if (gridIdx == i) overlays += Overlay.Details(libGames[i]) else gridIdx = i })
+                    Tab.LIBRARY -> LibraryTab(platforms, platformIdx, libGames, gridIdx, !barFocus, onCols = { gridCols = it }, onClick = { i -> if (gridIdx == i) overlays += Overlay.Details(libGames[i]) else gridIdx = i })
                 }
             }
         }
@@ -334,8 +335,8 @@ fun BigScreen() {
                 is Overlay.Menu, is Overlay.LaunchWith -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
                 Overlay.Search -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Open result", Pad.EAST to "Close")
                 null -> if (barFocus) listOf(Pad.LEFT to "Switch tab", Pad.DOWN to "Back to content")
-                        else if (tab == Tab.SETTINGS) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Value", Pad.LB to "Tabs", Pad.EAST to "Home")
-                        else listOf(Pad.SOUTH to "Details", Pad.WEST to "Favourite", Pad.NORTH to "Search", Pad.LB to "Tabs", Pad.START to "Menu")
+                        else if (tab == Tab.SETTINGS) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Value", Pad.LB to "", Pad.RB to "Tabs", Pad.EAST to "Home")
+                        else listOf(Pad.SOUTH to "Details", Pad.WEST to "Favourite", Pad.NORTH to "Search", Pad.LB to "", Pad.RB to "Tabs", Pad.START to "Menu")
             }.map { (p, l) -> (if (settings.nintendoConfirm && p == Pad.SOUTH) Pad.EAST else if (settings.nintendoConfirm && p == Pad.EAST) Pad.SOUTH else p) to l },
             family, Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
         )
@@ -349,7 +350,7 @@ fun BigScreen() {
                     onMore = { overlays += Overlay.Manage(games.firstOrNull { it.id == o.game.id } ?: o.game) })
                 is Overlay.LaunchWith -> LaunchWithOverlay(o.game, o.focus) { k -> overlays.clear(); app.play(o.game, k) }
                 is Overlay.Menu -> MenuOverlay(menuItems.map { it.first }, o.focus) { i -> menuItems[i].second(); overlays.clear() }
-                is Overlay.Manage -> MenuOverlay(manageItems(o.game).map { if (it == "Remove from library" && o.armedRemove) "Press again to remove" else it }, o.focus, title = o.game.title) { i ->
+                is Overlay.Manage -> MenuOverlay(manageItems(o.game, o.game.id in settings.spotlightGames).map { if (it == "Remove from library" && o.armedRemove) "Press again to remove" else it }, o.focus, title = o.game.title) { i ->
                     overlays[overlays.indexOf(o)] = o.copy(focus = i); manageAction(o.copy(focus = i), app, overlays)
                 }
                 is Overlay.Rename -> RenameOverlay(o.game, onDone = { t -> if (t.isNotBlank()) app.rename(o.game.id, t.trim()); overlays.remove(o) })
@@ -481,7 +482,7 @@ private fun HeroInfo(g: Game) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun LibraryTab(platforms: List<String?>, platformIdx: Int, games: List<Game>, index: Int, onCols: (Int) -> Unit, onClick: (Int) -> Unit) {
+private fun LibraryTab(platforms: List<String?>, platformIdx: Int, games: List<Game>, index: Int, active: Boolean, onCols: (Int) -> Unit, onClick: (Int) -> Unit) {
     val family by LocalApp.current.controllers.activeFamily.collectAsState()
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 16.dp)) {
@@ -498,7 +499,7 @@ private fun LibraryTab(platforms: List<String?>, platformIdx: Int, games: List<G
             LazyVerticalGrid(GridCells.Fixed(n), state = state, contentPadding = PaddingValues(top = 12.dp, bottom = 140.dp),
                 horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 itemsIndexed(games, key = { _, g -> g.id }) { i, g ->
-                    Box(Modifier.aspectRatio(2f / 3f).pressBounce(LocalPressPulse.current, i == index).focusEmphasis(i == index, 16.dp, 28.dp, 1.08f).clickable { onClick(i) }) { CoverArt(g, Modifier.fillMaxSize()) }
+                    Box(Modifier.aspectRatio(2f / 3f).pressBounce(LocalPressPulse.current, active && i == index).focusEmphasis(active && i == index, 16.dp, 28.dp, 1.08f).clickable { onClick(i) }) { CoverArt(g, Modifier.fillMaxSize()) }
                 }
             }
         }
@@ -676,15 +677,25 @@ private fun SearchOverlay(games: List<Game>, onClose: () -> Unit, onOpen: (Game)
 private const val HIDDEN = "__hidden"
 
 /** Spotlight picks: what you're playing, favourites, then new arrivals — preferring games with wide art. */
-private fun featuredGames(games: List<Game>): List<Game> {
+internal fun featuredGames(games: List<Game>, mode: cc.xdan.frontend.model.SpotlightMode = cc.xdan.frontend.model.SpotlightMode.RECENT,
+                           chosen: List<String> = emptyList(), seed: Long = 0): List<Game> {
     val visible = games.filter { !it.hidden && it.installed }
-    val ordered = (visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed } +
-        visible.filter { it.favorite } + visible.sortedByDescending { it.addedAt }).distinctBy { it.id }
+    val recent = visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed }
+    val fallback = (recent + visible.filter { it.favorite } + visible.sortedByDescending { it.addedAt }).distinctBy { it.id }
+    val picked = when (mode) {
+        cc.xdan.frontend.model.SpotlightMode.RECENT -> recent
+        cc.xdan.frontend.model.SpotlightMode.FAVOURITES -> visible.filter { it.favorite }.sortedBy { it.sortKey }
+        cc.xdan.frontend.model.SpotlightMode.RANDOM -> visible.shuffled(kotlin.random.Random(seed))
+        cc.xdan.frontend.model.SpotlightMode.CHOSEN -> { val byId = visible.associateBy { it.id }; chosen.mapNotNull { byId[it] } }
+    }
+    if (mode == cc.xdan.frontend.model.SpotlightMode.CHOSEN && picked.isNotEmpty()) return picked
+    val ordered = picked.ifEmpty { fallback }
     val wide = ordered.filter { it.assets.hero != null || it.assets.screenshot != null }
     return (wide.ifEmpty { ordered }).take(8)
 }
 
-private fun manageItems(g: Game) = listOf(if (g.hidden) "Show in library" else "Hide from library", "Rename", "Remove from library")
+private fun manageItems(g: Game, inSpotlight: Boolean = false) = listOf(if (g.hidden) "Show in library" else "Hide from library", "Rename", "Remove from library",
+    if (inSpotlight) "Remove from spotlight" else "Add to spotlight")
 
 private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController, overlays: MutableList<Overlay>) {
     when (o.focus) {
@@ -692,6 +703,7 @@ private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController,
         1 -> overlays += Overlay.Rename(o.game)
         2 -> if (o.armedRemove) { app.removeGames(setOf(o.game.id)); overlays.clear() }
              else overlays.indexOfFirst { it is Overlay.Manage }.takeIf { it >= 0 }?.let { overlays[it] = o.copy(armedRemove = true) }
+        3 -> { app.toggleSpotlight(o.game.id); overlays.removeAt(overlays.lastIndex) }
     }
 }
 
@@ -703,7 +715,7 @@ private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController,
 @Composable
 private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (Int) -> Unit) {
     // One spring drives both scroll and widths, so they can't disagree mid-move.
-    val pos by androidx.compose.animation.core.animateFloatAsState(index.toFloat(), androidx.compose.animation.core.spring(0.85f, 300f))
+    val pos by androidx.compose.animation.core.animateFloatAsState(index.toFloat(), androidx.compose.animation.core.spring(1f, 300f))
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().padding(top = 8.dp, bottom = 16.dp).then(Modifier.clipToBounds())) {
     val wide = maxWidth * 0.62f; val slim = maxWidth * 0.17f; val gap = 8.dp
     fun widthOf(i: Int) = slim + (wide - slim) * (1f - kotlin.math.abs(i - pos)).coerceIn(0f, 1f)

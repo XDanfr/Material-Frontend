@@ -306,6 +306,12 @@ class AppController {
         toast("Installing ${game.title} with ${t.label} — it'll appear here when it's done")
     }
 
+    /** Adds/removes a game from the chosen spotlight list (and switches the spotlight to chosen games when adding). */
+    fun toggleSpotlight(id: String) = updateSettings { s ->
+        if (id in s.spotlightGames) s.copy(spotlightGames = s.spotlightGames - id)
+        else s.copy(spotlightGames = s.spotlightGames + id, spotlight = cc.xdan.frontend.model.SpotlightMode.CHOSEN)
+    }
+
     fun toggleFavorite(id: String) = library.updateGame(id) { it.copy(favorite = !it.favorite) }
     fun setHidden(ids: Set<String>, hidden: Boolean) = library.update { l -> l.map { if (it.id in ids) it.copy(hidden = hidden) else it } }
     fun rename(id: String, title: String) = library.updateGame(id) { it.copy(title = title, titleLocked = true) }
