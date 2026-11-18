@@ -508,13 +508,43 @@ private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused
                     LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 56.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         itemsIndexed(shelf.games, key = { _, g -> g.id }) { c, g ->
                             val f = active && c == col
-                            Box(Modifier.width(if (active) 168.dp else 132.dp).aspectRatio(2f / 3f).pressBounce(LocalPressPulse.current, f)
-                                .focusEmphasis(f, baseCorner = 16.dp, focusedCorner = 28.dp, scale = 1.1f)
-                                .clickable { onClick(r, c) }) {
-                                CoverArt(g, Modifier.fillMaxSize())
-                            }
+                            ShelfCard(g, active, f) { onClick(r, c) }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A shelf tile. The focused one widens from box art to a 16:9 card with the game's wide art and logo
+ * (games without wide art stay as box art); moving on shrinks it back as the next one opens.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ShelfCard(g: Game, rowActive: Boolean, focused: Boolean, onClick: () -> Unit) {
+    val motion = MaterialTheme.motionScheme
+    val wideArt = g.assets.hero ?: g.assets.screenshot
+    val expand = focused && wideArt != null
+    val h = if (rowActive) 252.dp else 198.dp
+    val w by androidx.compose.animation.core.animateDpAsState(if (expand) h * 16f / 9f else h * 2f / 3f, motion.defaultSpatialSpec())
+    val wideAlpha by animateFloatAsState(if (expand) 1f else 0f, motion.defaultEffectsSpec())
+    Box(Modifier.width(w).height(h).pressBounce(LocalPressPulse.current, focused)
+        .focusEmphasis(focused, baseCorner = 16.dp, focusedCorner = 28.dp, scale = if (expand) 1.02f else 1.1f)
+        .clickable(onClick = onClick)) {
+        // Box art stays underneath (cropped) so the change never shows an empty frame.
+        CoverArt(g, Modifier.fillMaxSize())
+        if (wideArt != null && (expand || wideAlpha > 0f)) {
+            val hero by rememberImage(wideArt, 1280)
+            val logo by rememberImage(g.assets.logo, 600)
+            Box(Modifier.fillMaxSize().alpha(wideAlpha).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                hero?.let { Image(it, g.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
+                val l = logo
+                Box(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
+                    if (l != null) Image(l, g.title, Modifier.heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
+                    else Text(g.title, style = MaterialTheme.typography.titleLargeEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
