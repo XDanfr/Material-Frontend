@@ -164,13 +164,13 @@ class SteamLibrary {
                 File(cache, "${appId}_$n").takeIf { it.isFile }?.let { return it.path }
                 File(cache, "$appId/$n").takeIf { it.isFile }?.let { return it.path }
             }
-            // Newer clients nest files under hashed sub-folders.
-            File(cache, appId).walkTopDown().maxDepth(2).firstOrNull { f -> f.isFile && names.any { f.name == it } }?.let { return it.path }
-            return null
+            // Newer clients nest files under hashed sub-folders: honour the preference order, not walk order.
+            val nested = File(cache, appId).walkTopDown().maxDepth(2).filter { it.isFile }.associateBy { it.name }
+            return names.firstNotNullOfOrNull { nested[it]?.path }
         }
         return GameAssets(
             cover = find("library_600x900_2x.jpg", "library_600x900.jpg", "library_capsule.jpg"),
-            hero = find("library_hero.jpg", "library_hero_blur.jpg"),
+            hero = find("library_hero.jpg"),   // not library_hero_blur.jpg: Steam's pre-blurred copy
             logo = find("logo.png", "logo_2x.png"),
             icon = find("icon.jpg"),
         )

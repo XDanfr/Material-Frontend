@@ -253,11 +253,11 @@ class AppController {
             if (found.isNotEmpty() && s.onboardingComplete) _discoveries.value = found
             val steamGames = if (s.importSteam && "steam" !in newLaunchers) steamFound else emptyList()
             val steam = steamGames.map { g ->
-                existing[g.id]?.let { prev -> prev.copy(path = g.path, installed = true, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero ?: g.assets.hero, logo = prev.assets.logo ?: g.assets.logo)) } ?: g
+                existing[g.id]?.let { prev -> prev.copy(path = g.path, installed = true, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero?.takeUnless { it.endsWith("_blur.jpg") } ?: g.assets.hero, logo = prev.assets.logo ?: g.assets.logo)) } ?: g
             }
             _scan.value = _scan.value.copy(current = "Other launchers")
             val launchers = if (s.importLaunchers) perSource.filterKeys { it !in s.disabledLaunchers && it !in newLaunchers }.values.flatten().distinctBy { it.id }.map { g ->
-                existing[g.id]?.let { prev -> prev.copy(path = g.path, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero ?: g.assets.hero)) } ?: g
+                existing[g.id]?.let { prev -> prev.copy(path = g.path, assets = prev.assets.copy(cover = prev.assets.cover ?: g.assets.cover, hero = prev.assets.hero?.takeUnless { it.endsWith("_blur.jpg") } ?: g.assets.hero)) } ?: g
             } else emptyList()
             val imported = if (s.importGamelists) Gamelists.apply(roms, s.romFolders) else roms
             val keep = library.value.filter { it.kind == GameKind.PORT }
@@ -270,7 +270,7 @@ class AppController {
                     .ifEmpty { SteamOwned.localIds(root).map { SteamOwned.Owned(it, null) } }
                     else SteamOwned.localIds(root).map { SteamOwned.Owned(it, null) }
                 val info = SteamAppInfo.read(File(root, "appcache/appinfo.vdf"), owned.map { it.appId }.toSet())
-                SteamOwned.notInstalled(owned, installedIds, info, root).map { g -> existing[g.id]?.copy(installed = false, os = g.os) ?: g }
+                SteamOwned.notInstalled(owned, installedIds, info, root).map { g -> existing[g.id]?.let { prev -> prev.copy(installed = false, os = g.os, assets = prev.assets.copy(hero = prev.assets.hero?.takeUnless { it.endsWith("_blur.jpg") } ?: g.assets.hero)) } ?: g }
             }.getOrDefault(emptyList()) else emptyList()
             // Owned in Heroic (Epic / GOG / Amazon) but not installed.
             val heroicOwned = if (s.showNotInstalled && s.importLaunchers && "heroic" !in s.disabledLaunchers && "heroic" !in newLaunchers)
