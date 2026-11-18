@@ -36,13 +36,17 @@ class BigScreenNavTest {
         press(Nav.CONFIRM, Pad.SOUTH)
         out?.let { File(it, "bigscreen-manage.png").writeBytes(scene.render(t).encodeToData(EncodedImageFormat.PNG)!!.bytes) }
         press(Nav.CONFIRM, Pad.SOUTH)
-        pump(30)
+        val hideDeadline = System.currentTimeMillis() + 3000
+        while (app.library.value.none { it.hidden } && System.currentTimeMillis() < hideDeadline) pump(5)
         assertEquals(listOf("g0"), app.library.value.filter { it.hidden }.map { it.id }, "first game hidden via More…")
         // Remove needs two presses.
         press(Nav.CONFIRM, Pad.SOUTH); repeat(3) { press(Nav.RIGHT) }; press(Nav.CONFIRM, Pad.SOUTH)
         press(Nav.DOWN); press(Nav.DOWN); press(Nav.CONFIRM, Pad.SOUTH)
         assertEquals(6, app.library.value.size, "first press only arms remove")
-        press(Nav.CONFIRM, Pad.SOUTH); pump(20)
+        press(Nav.CONFIRM, Pad.SOUTH)
+        // Confirm acts after a real-time press delay; slow CI runners need a moment.
+        val deadline = System.currentTimeMillis() + 3000
+        while (app.library.value.size != 5 && System.currentTimeMillis() < deadline) pump(5)
         assertEquals(5, app.library.value.size)
         assertTrue(app.settings.value.removedGames.isNotEmpty(), "removal remembered for rescans")
         scene.close()
