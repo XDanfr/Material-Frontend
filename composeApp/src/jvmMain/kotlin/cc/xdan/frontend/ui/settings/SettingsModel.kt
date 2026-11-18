@@ -108,7 +108,12 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
             PanelSetting("folders", "Game folders", "Folders that hold your games",
                 if (s.romFolders.isEmpty()) "No folders yet" else "${s.romFolders.size} folder(s)") { RomFoldersPanel() },
             ToggleSetting("steam", "Import Steam library", "Installed games and non-Steam shortcuts", s.importSteam) { v -> set { it.copy(importSteam = v) } },
-            ToggleSetting("launchers", "Import other launchers", "Epic, EA, Xbox, GOG Galaxy, Ubisoft, Heroic, Lutris, CrossOver", s.importLaunchers) { v -> set { it.copy(importLaunchers = v) } },
+            ToggleSetting("launchers", "Import other launchers", "Each one can be switched off below", s.importLaunchers) { v -> set { it.copy(importLaunchers = v) } },
+        ) + cc.xdan.frontend.data.LauncherSources.Source.entries.map { src ->
+            ToggleSetting("launcher-${src.id}", src.label, null, s.importLaunchers && src.id !in s.disabledLaunchers) { v ->
+                set { it.copy(disabledLaunchers = if (v) it.disabledLaunchers - src.id else it.disabledLaunchers + src.id, importLaunchers = it.importLaunchers || v) }
+            }
+        } + listOf(
             ToggleSetting("gamelists", "Use existing ES-DE / Pegasus metadata", null, s.importGamelists) { v -> set { it.copy(importGamelists = v) } },
             ToggleSetting("rescanStartup", "Look for new games at start-up", null, s.rescanOnStartup) { v -> set { it.copy(rescanOnStartup = v) } },
             ActionSetting("rescan", "Rescan library", "$gameCount games", "Rescan", { app.rescan() }),

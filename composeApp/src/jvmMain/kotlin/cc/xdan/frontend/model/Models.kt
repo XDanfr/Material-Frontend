@@ -140,6 +140,12 @@ data class Settings(
     val importSteam: Boolean = true,
     /** Epic, EA, Xbox, GOG Galaxy, Ubisoft, Heroic, Lutris. */
     val importLaunchers: Boolean = true,
+    /** Launcher sources switched off (LauncherSources.Source ids). */
+    val disabledLaunchers: Set<String> = emptySet(),
+    /** Launchers (incl. "steam") the user has already been asked about; null = from before this existed. */
+    val knownLaunchers: Set<String>? = null,
+    /** Found emulators the user said no to ("emu:<path>"). */
+    val dismissedDiscoveries: Set<String> = emptySet(),
     /** Read existing ES-DE / EmulationStation gamelist.xml and Pegasus metadata files. */
     val importGamelists: Boolean = true,
     val emulators: List<EmulatorConfig> = emptyList(),

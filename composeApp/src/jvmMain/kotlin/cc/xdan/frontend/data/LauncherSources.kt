@@ -35,9 +35,23 @@ object LauncherSources {
     private fun JsonElement?.s(): String? = (this as? JsonPrimitive)?.contentOrNull
     private fun JsonElement?.b(): Boolean = (this as? JsonPrimitive)?.booleanOrNull == true
 
-    fun scanAll(): List<Game> = listOf<() -> List<Game>>({ epic() }, ::ea, ::xbox, ::ubisoft, ::gogGalaxy, { heroic() }, ::lutris, { CompatSteam.scanAll() })
-        .flatMap { src -> runCatching { src() }.onFailure { System.err.println("Launcher scan: ${it.message}") }.getOrDefault(emptyList()) }
-        .distinctBy { it.id }
+    /** Each launcher can be switched on/off on its own (setup and Settings). Steam is handled by [SteamLibrary]. */
+    enum class Source(val id: String, val label: String) {
+        EPIC("epic", "Epic Games"), EA("ea", "EA app"), XBOX("xbox", "Xbox"), GOG("gog", "GOG Galaxy"), UBISOFT("ubisoft", "Ubisoft Connect"),
+        HEROIC("heroic", "Heroic"), LUTRIS("lutris", "Lutris"), CROSSOVER("crossover", "CrossOver"), PARALLELS("parallels", "Parallels"),
+    }
+
+    fun scan(source: Source): List<Game> = runCatching {
+        when (source) {
+            Source.EPIC -> epic(); Source.EA -> ea(); Source.XBOX -> xbox(); Source.GOG -> gogGalaxy(); Source.UBISOFT -> ubisoft()
+            Source.HEROIC -> heroic(); Source.LUTRIS -> lutris()
+            Source.CROSSOVER -> if (HostOs.current == HostOs.WINDOWS) emptyList() else CompatSteam.crossover() + CompatLaunchers.crossover()
+            Source.PARALLELS -> if (HostOs.current == HostOs.MAC) CompatSteam.parallels() + CompatLaunchers.parallels() else emptyList()
+        }
+    }.onFailure { System.err.println("Launcher scan (${source.label}): ${it.message}") }.getOrDefault(emptyList())
+
+    fun scanAll(disabled: Set<String> = emptySet()): List<Game> =
+        Source.entries.filter { it.id !in disabled }.flatMap { scan(it) }.distinctBy { it.id }
 
     private fun game(id: String, title: String, platform: String, launch: String, assets: GameAssets = GameAssets()) =
         Game(id = id, title = title, platformId = platform, kind = GameKind.LAUNCHER, path = launch, assets = assets)
@@ -93,7 +107,7 @@ object LauncherSources {
         return roots.map(::File).filter { it.isDirectory }.distinct()
     }
 
-    fun ea(): List<Game> = eaRoots().flatMap { root ->
+    fun ea(roots: List<File> = eaRoots()): List<Game> = roots.flatMap { root ->
         root.listFiles { f -> f.isDirectory }.orEmpty().mapNotNull { dir ->
             val xml = File(dir, "__Installer/installerdata.xml").takeIf { it.isFile } ?: return@mapNotNull null
             runCatching {
