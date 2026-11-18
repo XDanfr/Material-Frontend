@@ -112,4 +112,4 @@ tasks.matching { it.name == "createDistributable" }.configureEach {
 }
 
 // Tests construct several AppControllers against one scratch data folder: no start-up scans of the real machine.
-tasks.withType<Test>().configureEach { systemProperty("mf.noStartupScan", "true") }
+tasks.withType<Test>().configureEach { systemProperty("mf.noStartupScan", "true"); systemProperty("mf.noControllers", "true") }

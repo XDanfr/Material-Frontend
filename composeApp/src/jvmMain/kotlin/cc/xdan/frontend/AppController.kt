@@ -138,7 +138,8 @@ class AppController {
         controllers.nintendoConfirm = settings.value.nintendoConfirm
         Platforms.setCustom(settings.value.customSystems)
         scope.launch { settings.state.collect { Platforms.setCustom(it.customSystems); refreshRunnable(); controllers.padBindings = cc.xdan.frontend.input.UiBindings.padOverrides(it.uiPadBindings) } }
-        controllers.start()
+        // Tests set mf.noControllers: no SDL thread, so nothing native is still running when the test JVM exits.
+        if (System.getProperty("mf.noControllers") == null) controllers.start()
         // Pick up games added since last time (new ROMs, newly installed Steam/launcher games).
         // (Tests set mf.noStartupScan so a saved "set up" state doesn't scan the real machine mid-test.)
         if (settings.value.onboardingComplete && settings.value.rescanOnStartup && System.getProperty("mf.noStartupScan") == null) rescan()

@@ -60,6 +60,17 @@ fun main(args: Array<String>) {
         LaunchedEffect(Unit) { app.minimizeRequests.collect { state.isMinimized = it } }
         LaunchedEffect(Unit) { app.exitRequests.collect { app.shutdown(); exitApplication() } }
 
+        // Compose 1.12 can trip over its own on-screen position bookkeeping ("LayoutNode … not found in RectList")
+        // for a single frame. Skip that frame and keep going instead of showing a fatal error; anything else is
+        // still reported the normal way.
+        @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.window.LocalWindowExceptionHandlerFactory provides
+            androidx.compose.ui.window.WindowExceptionHandlerFactory { w ->
+                val fallback = androidx.compose.ui.window.DefaultWindowExceptionHandlerFactory.exceptionHandler(w)
+                androidx.compose.ui.window.WindowExceptionHandler { e ->
+                    if (isComposeRectGlitch(e)) System.err.println("Skipped a frame: ${e.message}") else fallback.onException(e)
+                }
+            }) {
         Window(
             onCloseRequest = { app.shutdown(); exitApplication() },
             state = state,
@@ -79,8 +90,13 @@ fun main(args: Array<String>) {
             }
             App(app)
         }
+        }
     }
 }
+
+/** The known Compose layout glitch (see Main): harmless to skip. */
+internal fun isComposeRectGlitch(e: Throwable): Boolean =
+    e is IllegalArgumentException && e.message?.contains("not found in RectList") == true
 
 /** Control-Command-F on macOS (the system's own "Enter Full Screen" shortcut), F11 elsewhere. */
 private fun isFullscreenShortcut(e: KeyEvent): Boolean =
