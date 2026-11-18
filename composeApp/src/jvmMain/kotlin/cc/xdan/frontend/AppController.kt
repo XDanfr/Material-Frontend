@@ -271,7 +271,11 @@ class AppController {
                 val info = SteamAppInfo.read(File(root, "appcache/appinfo.vdf"), owned.map { it.appId }.toSet())
                 SteamOwned.notInstalled(owned, installedIds, info, root).map { g -> existing[g.id]?.copy(installed = false, os = g.os) ?: g }
             }.getOrDefault(emptyList()) else emptyList()
-            val all = (imported + steam + launchers + keep + notInstalled).distinctBy { it.id }.filter { it.id !in settings.value.removedGames }
+            // Owned in Heroic (Epic / GOG / Amazon) but not installed.
+            val heroicOwned = if (s.showNotInstalled && s.importLaunchers && "heroic" !in s.disabledLaunchers && "heroic" !in newLaunchers)
+                runCatching { LauncherSources.heroicOwned(launchers.map { it.id }.toSet()).map { g -> existing[g.id]?.copy(installed = false, path = g.path) ?: g } }.getOrDefault(emptyList())
+                else emptyList()
+            val all = (imported + steam + launchers + keep + notInstalled + heroicOwned).distinctBy { it.id }.filter { it.id !in settings.value.removedGames }
             library.update { all }
             _scan.value = ScanState(false, "", all.size)
             toast("Library updated · ${all.size} games")
@@ -299,6 +303,8 @@ class AppController {
 
     /** Starts installing [game] in its launcher (Steam on this machine, or Steam in CrossOver/Parallels). */
     fun install(game: Game, target: InstallTarget? = null) {
+        // Heroic offers to install when asked to launch a game it doesn't have.
+        if (game.path.startsWith("heroic://")) { Launchers.openUri(game.path); toast("Opening ${game.title} in Heroic to install"); return }
         val t = target ?: installTargets(game).firstOrNull()
         if (t == null) {
             val host = when (HostOs.current) { HostOs.MAC -> "Mac"; HostOs.LINUX -> "Linux"; HostOs.WINDOWS -> "Windows" }

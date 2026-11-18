@@ -236,6 +236,29 @@ object LauncherSources {
         out
     }
 
+    /**
+     * Games you own in Heroic (Epic, GOG, Amazon) that aren't installed, from its store caches.
+     * Opening heroic://launch for an uninstalled game makes Heroic offer to install it.
+     */
+    fun heroicOwned(installedIds: Set<String>, dirs: List<File> = heroicDirs()): List<Game> = dirs.flatMap { dir ->
+        listOf(Triple("legendary_library.json", "library", "epic" to "legendary"), Triple("gog_library.json", "games", "gog" to "gog"),
+            Triple("nile_library.json", "library", "amazon" to "nile")).flatMap { (file, key, src) ->
+            val (platform, runner) = src
+            runCatching {
+                val arr = json.parseToJsonElement(File(dir, "store_cache/$file").readText()).jsonObject[key] as JsonArray
+                arr.mapNotNull { e ->
+                    val g = e.jsonObject
+                    val app = g["app_name"].s() ?: return@mapNotNull null
+                    if (g["is_dlc"].b() || g["is_installed"].b()) return@mapNotNull null
+                    val id = "$platform-$app"
+                    if (id in installedIds) return@mapNotNull null
+                    // Heroic runs Windows builds through Wine/CrossOver on Mac and Linux, so everything is installable.
+                    game(id, g["title"].s() ?: app, platform, heroicUri(runner, app)).copy(installed = false)
+                }
+            }.getOrDefault(emptyList())
+        }
+    }.distinctBy { it.id }
+
     // ---------------- Lutris (Linux) ----------------
 
     fun lutris(): List<Game> {
