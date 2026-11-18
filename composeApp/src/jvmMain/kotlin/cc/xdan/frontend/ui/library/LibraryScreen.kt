@@ -98,6 +98,7 @@ import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -166,6 +167,9 @@ fun LibraryScreen() {
     val selected = games.firstOrNull { it.id == selectedId }
     ArtworkSeedEffect(selected?.assets?.cover)
 
+    // Opened from Big Screen / XMB ("edit in Library view").
+    val requested by app.openSettings.collectAsState()
+    LaunchedEffect(requested) { requested?.let { showSettings = it; app.openSettings.value = null } }
     showSettings?.let { sec -> SettingsScreen(onBack = { showSettings = null }, initial = sec); return }
 
     Box(Modifier.fillMaxSize().onPreviewKeyEvent { e ->

@@ -1,5 +1,21 @@
 package cc.xdan.frontend.ui.xmb
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.ToggleOff
+import androidx.compose.material.icons.outlined.ToggleOn
+import cc.xdan.frontend.ui.settings.ChoiceStyle
+import cc.xdan.frontend.ui.settings.InfoSetting
+import cc.xdan.frontend.ui.settings.PanelSetting
+import cc.xdan.frontend.ui.settings.ActionSetting
+import cc.xdan.frontend.ui.settings.ChoiceSetting
+import cc.xdan.frontend.ui.settings.ToggleSetting
+import cc.xdan.frontend.ui.settings.activateSetting
+import cc.xdan.frontend.ui.settings.settingsGroups
 import kotlinx.coroutines.delay
 import cc.xdan.frontend.ui.components.PRESS_DELAY_MS
 import cc.xdan.frontend.ui.components.pressBounce
@@ -98,16 +114,37 @@ fun XmbScreen() {
     val settings by app.settings.state.collectAsState()
     val family by app.controllers.activeFamily.collectAsState()
 
-    val categories = remember(games, settings) {
+    // Settings: the same shared list as the Library view and Big Screen (changes show everywhere).
+    val groups = settingsGroups(UiMode.XMB)
+    var armed by remember { mutableStateOf<String?>(null) }
+    val settingsCategory = Category("Settings", Icons.Outlined.Settings, buildList {
+        add(ActionItem("Library view", "Switch theme · mouse & keyboard", Icons.Outlined.GridView) { app.mode.value = UiMode.LIST; app.fullscreen.value = false })
+        add(ActionItem("Big Screen", "Switch theme · controller shelves", Icons.Outlined.Tv) { app.mode.value = UiMode.BIGSCREEN })
+        groups.forEach { g ->
+            g.items.forEach { item ->
+                val sub = g.section.labelFor(UiMode.XMB) + " · " + when (item) {
+                    is ToggleSetting -> if (item.value) "On" else "Off"
+                    is ChoiceSetting -> item.selectedLabel
+                    is ActionSetting -> if (armed == item.key) "Press again to confirm" else (item.subtitle ?: item.button)
+                    is PanelSetting -> item.summary + " · edit in the Library view"
+                    is InfoSetting -> item.subtitle ?: ""
+                }
+                val icon = when (item) {
+                    is ToggleSetting -> if (item.value) Icons.Outlined.ToggleOn else Icons.Outlined.ToggleOff
+                    is ChoiceSetting -> if (item.style == ChoiceStyle.ACCENT) Icons.Outlined.ColorLens else Icons.Outlined.Tune
+                    is ActionSetting -> if (item.destructive) Icons.Outlined.DeleteForever else Icons.Outlined.PlayArrow
+                    is PanelSetting -> Icons.AutoMirrored.Outlined.OpenInNew
+                    is InfoSetting -> Icons.Outlined.Info
+                }
+                add(ActionItem(item.title, sub, icon) {
+                    activateSetting(item, Nav.CONFIRM, armed, { armed = it }, { app.editInLibraryView(it) }, g.section)
+                })
+            }
+        }
+    })
+    val gameCategories = remember(games) {
         val visible = games.filter { !it.hidden }
         buildList {
-            add(Category("Settings", Icons.Outlined.Settings, listOf(
-                ActionItem("Library view", "Mouse & keyboard library", Icons.Outlined.GridView) { app.mode.value = UiMode.LIST; app.fullscreen.value = false },
-                ActionItem("Big Screen", "Controller shelves", Icons.Outlined.Tv) { app.mode.value = UiMode.BIGSCREEN },
-                ActionItem("Rescan library", "Look for new games", Icons.Outlined.Refresh) { app.rescan() },
-                ActionItem("Theme", settings.themeMode.name.lowercase(), Icons.Outlined.Palette) { app.updateSettings { it.copy(themeMode = ThemeMode.entries[(it.themeMode.ordinal + 1) % ThemeMode.entries.size]) } },
-                ActionItem("Colour from artwork", if (settings.colorFromArtwork) "On" else "Off", Icons.Outlined.ColorLens) { app.updateSettings { it.copy(colorFromArtwork = !it.colorFromArtwork) } },
-            )))
             visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed }.take(20).takeIf { it.isNotEmpty() }?.let { add(Category("Recent", Icons.Outlined.History, it.map(::GameItem))) }
             visible.filter { it.favorite }.takeIf { it.isNotEmpty() }?.let { add(Category("Favourites", Icons.Outlined.Favorite, it.map(::GameItem))) }
             visible.filter { it.kind == GameKind.PORT }.takeIf { it.isNotEmpty() }?.let { add(Category("Ports", Icons.Outlined.Build, it.map(::GameItem))) }
@@ -116,6 +153,7 @@ fun XmbScreen() {
             }
         }
     }
+    val categories = listOf(settingsCategory) + gameCategories
     var cat by remember { mutableIntStateOf(if (categories.size > 1) 1 else 0) }
     val itemIdx = remember { mutableStateMapOf<Int, Int>() }
     val current = categories.getOrNull(cat)
@@ -146,7 +184,7 @@ fun XmbScreen() {
     }
 
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(MaterialTheme.colorScheme.surfaceContainerLowest, MaterialTheme.colorScheme.surfaceContainer)))) {
-        Waves()
+        if (settings.xmbWaves) Waves()
         BrandArtwork(Wordmark.HORIZONTAL, Modifier.align(Alignment.TopStart).padding(start = 40.dp, top = 32.dp).height(44.dp))
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val anchorX = maxWidth * 0.22f
@@ -192,7 +230,7 @@ fun XmbScreen() {
                 }
             }
         }
-        HintBar(listOf(Pad.SOUTH to "Open", Pad.WEST to "Favourite", Pad.START to "Big Screen"), family, Modifier.align(Alignment.BottomEnd).padding(32.dp))
+        if (settings.xmbHints) HintBar(listOf(Pad.SOUTH to "Open", Pad.WEST to "Favourite", Pad.START to "Big Screen"), family, Modifier.align(Alignment.BottomEnd).padding(32.dp))
     }
 }
 

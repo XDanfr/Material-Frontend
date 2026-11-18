@@ -1,5 +1,6 @@
 package cc.xdan.frontend.ui.bigscreen
 
+import cc.xdan.frontend.ui.settings.ControllerSettings
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.animateContentSize
@@ -117,7 +118,7 @@ import java.time.format.DateTimeFormatter
 
 data class Shelf(val title: String, val games: List<Game>)
 
-private enum class Tab(val label: String) { HOME("Home"), LIBRARY("Library") }
+private enum class Tab(val label: String) { HOME("Home"), LIBRARY("Library"), SETTINGS("Settings") }
 
 /** One overlay at a time, top of the stack receives controller input. */
 private sealed interface Overlay {
@@ -167,6 +168,7 @@ fun BigScreen() {
     val focused: Game? = when (tab) {
         Tab.HOME -> shelves.getOrNull(row)?.games?.getOrNull(cols[row] ?: 0)
         Tab.LIBRARY -> libGames.getOrNull(gridIdx)
+        Tab.SETTINGS -> null
     }
     ArtworkSeedEffect(focused?.assets?.cover)
 
@@ -231,9 +233,9 @@ fun BigScreen() {
                     Nav.MENU, Nav.GUIDE -> overlays += Overlay.Menu()
                     Nav.SEARCH -> overlays += Overlay.Search
                     Nav.BACK -> if (tab != Tab.HOME) tab = Tab.HOME
-                    Nav.CONFIRM -> currentFocused?.let { overlays += Overlay.Details(it) }
-                    Nav.ALT -> currentFocused?.let { app.toggleFavorite(it.id) }
-                    else -> if (tab == Tab.HOME) {
+                    Nav.CONFIRM -> if (tab != Tab.SETTINGS) currentFocused?.let { overlays += Overlay.Details(it) }
+                    Nav.ALT -> if (tab != Tab.SETTINGS) currentFocused?.let { app.toggleFavorite(it.id) }
+                    else -> if (tab == Tab.SETTINGS) { /* ControllerSettings handles its own navigation */ } else if (tab == Tab.HOME) {
                         when (e.nav) {
                             Nav.UP -> row = (row - 1).coerceAtLeast(0)
                             Nav.DOWN -> row = (row + 1).coerceAtMost((shelves.size - 1).coerceAtLeast(0))
@@ -271,16 +273,18 @@ fun BigScreen() {
             }) { t ->
                 when (t) {
                     Tab.HOME -> HomeTab(shelves, row, cols, focused, onClick = { r, c -> if (row == r && (cols[r] ?: 0) == c) shelves[r].games.getOrNull(c)?.let { overlays += Overlay.Details(it) } else { row = r; cols[r] = c } })
+                    Tab.SETTINGS -> ControllerSettings(UiMode.BIGSCREEN, active = overlays.isEmpty(), modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp))
                     Tab.LIBRARY -> LibraryTab(platforms, platformIdx, libGames, gridIdx, onCols = { gridCols = it }, onClick = { i -> if (gridIdx == i) overlays += Overlay.Details(libGames[i]) else gridIdx = i })
                 }
             }
         }
-        HintBar(
+        if (settings.bigScreenHints) HintBar(
             when (overlays.lastOrNull()) {
                 is Overlay.Details -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Favourite", Pad.EAST to "Back")
                 is Overlay.Menu, is Overlay.LaunchWith -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
                 Overlay.Search -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Open result", Pad.EAST to "Close")
-                null -> listOf(Pad.SOUTH to "Details", Pad.WEST to "Favourite", Pad.NORTH to "Search", Pad.LB to "Tabs", Pad.START to "Menu")
+                null -> if (tab == Tab.SETTINGS) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Value", Pad.LB to "Tabs", Pad.EAST to "Home")
+                        else listOf(Pad.SOUTH to "Details", Pad.WEST to "Favourite", Pad.NORTH to "Search", Pad.LB to "Tabs", Pad.START to "Menu")
             }.map { (p, l) -> (if (settings.nintendoConfirm && p == Pad.SOUTH) Pad.EAST else if (settings.nintendoConfirm && p == Pad.EAST) Pad.SOUTH else p) to l },
             family, Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
         )
@@ -341,7 +345,7 @@ private fun TopBar(tab: Tab, family: ControllerFamily, onTab: (Tab) -> Unit) {
                     p.battery?.let { Text(" $it%", style = MaterialTheme.typography.labelMedium) }
                 }
             }
-            Text(time.format(DateTimeFormatter.ofPattern("HH:mm")), style = MaterialTheme.typography.titleLarge.flex { copy(wdth = 76f, wght = 560f, rond = 60f) })
+            if (LocalApp.current.settings.state.collectAsState().value.bigScreenClock) Text(time.format(DateTimeFormatter.ofPattern("HH:mm")), style = MaterialTheme.typography.titleLarge.flex { copy(wdth = 76f, wght = 560f, rond = 60f) })
         }
     }
 }

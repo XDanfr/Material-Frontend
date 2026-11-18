@@ -2,6 +2,7 @@
 
 package cc.xdan.frontend.ui.settings
 
+import androidx.compose.runtime.produceState
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
 import cc.xdan.frontend.ui.brand.CartridgeLoader
@@ -133,9 +134,6 @@ fun RomFoldersPanel() {
                 }
             }) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Add folder") }
         }
-        SwitchRow("Import Steam library", "Installed Steam games and non-Steam shortcuts, with their library art", settings.importSteam) { v -> app.updateSettings { it.copy(importSteam = v) } }
-        SwitchRow("Import other launchers", "Epic Games, EA app, Xbox, GOG Galaxy, Ubisoft Connect, Heroic and Lutris", settings.importLaunchers) { v -> app.updateSettings { it.copy(importLaunchers = v) } }
-        SwitchRow("Use existing ES-DE / Pegasus metadata", "Reads gamelist.xml and metadata.pegasus.txt next to your games", settings.importGamelists) { v -> app.updateSettings { it.copy(importGamelists = v) } }
     }
 }
 
@@ -299,6 +297,7 @@ fun BiosPanel() {
     val settings by app.settings.state.collectAsState()
     val dir = File(settings.biosDir ?: AppPaths.system.path)
     var refresh by remember { mutableStateOf(0) }
+    val played by produceState<Set<String>?>(null, settings.romFolders) { value = app.playedPlatforms() }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("BIOS and firmware files are never downloaded. Copy your own dumps into the folder below; they're checked against known-good hashes.",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -308,7 +307,11 @@ fun BiosPanel() {
             OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { refresh++ }) { Text("Re-check") }
         }
         val _r = refresh
-        BiosCatalog.all.groupBy { it.platformId }.forEach { (pid, files) ->
+        // Only systems you actually have games for.
+        val relevant = BiosCatalog.all.filter { played?.contains(it.platformId) == true }
+        if (played == null) Text("Checking your systems…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        else if (relevant.isEmpty()) Text("None of the systems in your library need BIOS files.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        relevant.groupBy { it.platformId }.forEach { (pid, files) ->
             Text(Platforms.get(pid).name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
             files.forEach { b ->
                 val st = remember(b, dir, refresh) { BiosCatalog.status(dir, b) }
@@ -347,8 +350,6 @@ fun ScraperPanel() {
             OutlinedTextField(s.igdbClientSecret, { v -> upd { it.copy(igdbClientSecret = v.trim()) } }, label = { Text("Client secret") }, singleLine = true,
                 visualTransformation = PasswordVisualTransformation(), modifier = Modifier.weight(1f))
         }
-        SwitchRow("Download hero art", "Wide banners used in Big Screen and the details pane", s.downloadHeroes) { v -> upd { it.copy(downloadHeroes = v) } }
-        SwitchRow("Scrape new games automatically", null, s.autoScrapeNew) { v -> upd { it.copy(autoScrapeNew = v) } }
     }
 }
 
@@ -374,8 +375,6 @@ fun ControllersPanel() {
                 }
             }
         }
-        SwitchRow("Nintendo-style confirm", "Use the right face button to confirm and the bottom one to go back", settings.nintendoConfirm) { v -> app.updateSettings { it.copy(nintendoConfirm = v) } }
-        SwitchRow("Open Big Screen when a controller connects", null, settings.bigScreenOnController) { v -> app.updateSettings { it.copy(bigScreenOnController = v) } }
         Text("In game: Guide (or Select + Start) opens the quick menu · Select + RB toggles fast-forward · hold Select + LB to rewind. " +
             "Keyboard: arrows, Z/X/A/S face buttons, Q/W shoulders, Enter start, Shift select, Esc menu.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

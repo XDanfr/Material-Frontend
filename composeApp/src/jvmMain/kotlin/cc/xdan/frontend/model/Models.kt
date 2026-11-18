@@ -147,4 +147,10 @@ data class Settings(
     val minimizeOnExternalLaunch: Boolean = true,
     val reduceMotion: Boolean = false,
     val launchAnimation: Boolean = true,
+    val rescanOnStartup: Boolean = true,
+    // Theme-specific
+    val bigScreenClock: Boolean = true,
+    val bigScreenHints: Boolean = true,
+    val xmbWaves: Boolean = true,
+    val xmbHints: Boolean = true,
 )

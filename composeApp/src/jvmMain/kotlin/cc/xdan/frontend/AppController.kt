@@ -1,5 +1,6 @@
 package cc.xdan.frontend
 
+import cc.xdan.frontend.ui.settings.SettingsSection
 import cc.xdan.frontend.emulators.CoreCatalog
 import cc.xdan.frontend.data.Gamelists
 import cc.xdan.frontend.data.LauncherSources
@@ -83,6 +84,14 @@ class AppController {
         }
     }
 
+    /** Ask the Library view to open Settings at a section (from Big Screen / XMB "edit in Library view"). */
+    val openSettings = MutableStateFlow<SettingsSection?>(null)
+
+    fun editInLibraryView(section: SettingsSection) {
+        mode.value = UiMode.LIST; fullscreen.value = false
+        openSettings.value = section
+    }
+
     private val _coreInstall = MutableStateFlow<CoreInstallProgress?>(null)
     val coreInstall: StateFlow<CoreInstallProgress?> = _coreInstall.asStateFlow()
 
@@ -113,6 +122,8 @@ class AppController {
         if (settings.value.seedColor == 0xFF5B5BD6) settings.update { it.copy(seedColor = 0xFF6750A4) }
         controllers.nintendoConfirm = settings.value.nintendoConfirm
         controllers.start()
+        // Pick up games added since last time (new ROMs, newly installed Steam/launcher games).
+        if (settings.value.onboardingComplete && settings.value.rescanOnStartup) rescan()
         scope.launch {
             controllers.connected.collect { info ->
                 toast("${info.typeLabel} connected")
@@ -173,6 +184,30 @@ class AppController {
     }
 
     fun removeGames(ids: Set<String>) = library.remove(ids)
+
+    /**
+     * Systems the user plays: those in the library plus those found in their game folders
+     * (a quick scan, so setup's BIOS step knows them before the first full scan).
+     */
+    suspend fun playedPlatforms(): Set<String> = withContext(Dispatchers.IO) {
+        library.value.map { it.platformId }.toSet() +
+            runCatching { RomScanner().scan(settings.value.romFolders, emptyMap()).games.map { it.platformId } }.getOrDefault(emptyList())
+    }
+
+    /** Detect standalone emulators and add new ones (shared by setup, Settings and controller modes). */
+    fun scanEmulators() {
+        scope.launch {
+            val found = detectEmulators()
+            var added = 0
+            updateSettings { s ->
+                val existing = s.emulators.map { it.path }.toSet()
+                val new = found.filter { it.path !in existing }.map { it.toConfig() }
+                added = new.size
+                s.copy(emulators = s.emulators + new)
+            }
+            toast(if (found.isEmpty()) "No emulators found" else "Found ${found.size} emulator(s), $added new")
+        }
+    }
 
     // ---------- Reset (Settings → About). Game files, saves, states, cores and BIOS are never touched. ----------
 
