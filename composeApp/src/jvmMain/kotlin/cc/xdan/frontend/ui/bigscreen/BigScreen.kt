@@ -493,7 +493,7 @@ private fun Greeting(modifier: Modifier = Modifier) {
     // New line each hour; stable within it.
     val hour = java.time.LocalTime.now().hour
     val seed = remember(hour) { System.currentTimeMillis() / 3_600_000 }
-    val text = Greetings.line(Greetings.forHour(hour, seed), s.userName.ifBlank { app.steamName ?: "" })
+    val text = Greetings.line(Greetings.forHour(hour, seed), if (s.greetingName) s.userName.ifBlank { app.steamName ?: "" } else null)
     Text(text, modifier, style = MaterialTheme.typography.headlineMediumEmphasized, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
@@ -520,7 +520,7 @@ private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused
             }, contentKey = { it?.id ?: "spotlight" }) { g ->
                 if (g != null) HeroInfo(g)
                 else Column {
-                    Greeting(Modifier.padding(top = 4.dp, bottom = 4.dp))
+                    if (LocalApp.current.settings.state.collectAsState().value.showGreeting) Greeting(Modifier.padding(top = 4.dp, bottom = 4.dp))
                     if (featured.isNotEmpty()) Box(Modifier.weight(1f)) { Spotlight(featured, spotIdx, row == -1 && contentFocus, onSpot) }
                 }
             }

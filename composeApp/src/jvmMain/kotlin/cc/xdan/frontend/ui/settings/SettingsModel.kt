@@ -118,6 +118,9 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
                 ChoiceSetting("spotlight", "Spotlight shows", "Pick games for 'Chosen' from a game's More… menu",
                     cc.xdan.frontend.model.SpotlightMode.entries.map { it.label }, s.spotlight.ordinal,
                     { i -> set { it.copy(spotlight = cc.xdan.frontend.model.SpotlightMode.entries[i]) } }),
+                ToggleSetting("showGreeting", "Greeting", "A hello for the time of day above the spotlight", s.showGreeting) { v -> set { it.copy(showGreeting = v) } },
+                ToggleSetting("greetingName", "Include your name", if (s.userName.isNotBlank()) "Uses \"${s.userName}\"" else app.steamName?.let { "Uses your Steam name, $it" } ?: "Set your name in General",
+                    s.greetingName) { v -> set { it.copy(greetingName = v) } },
                 ToggleSetting("bsHints", "Show button hints", null, s.bigScreenHints) { v -> set { it.copy(bigScreenHints = v) } },
             )
             UiMode.XMB -> listOf(

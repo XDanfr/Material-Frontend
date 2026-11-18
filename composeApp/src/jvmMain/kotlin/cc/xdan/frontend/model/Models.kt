@@ -215,6 +215,9 @@ data class Settings(
     val spotlightHidden: Set<String> = emptySet(),
     /** Name used in the Home greeting; blank → Steam's account name if found. */
     val userName: String = "",
+    /** Big Screen greeting above the spotlight, and whether it includes your name. */
+    val showGreeting: Boolean = true,
+    val greetingName: Boolean = true,
     val xmbWaves: Boolean = true,
     val xmbBackground: XmbBackground = XmbBackground.WAVES,
     val xmbHints: Boolean = true,
