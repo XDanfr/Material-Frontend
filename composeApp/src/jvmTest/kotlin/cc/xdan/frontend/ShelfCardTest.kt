@@ -33,7 +33,7 @@ class ShelfCardTest {
         app.library.update {
             colors.mapIndexed { i, c ->
                 Game("s$i", "Shelf Game $i", "steam", path = "$i", lastPlayed = 1000L - i,
-                    assets = GameAssets(cover = png(art, "c$i.png", 200, 300, c), hero = png(art, "h$i.png", 640, 360, c)))
+                    assets = GameAssets(cover = png(art, "c$i.png", 200, 300, c), hero = if (i == 2) null else png(art, "h$i.png", 640, 360, c)))
             }
         }
         app.mode.value = UiMode.BIGSCREEN
@@ -45,6 +45,7 @@ class ShelfCardTest {
         pump(60)
         press(Nav.DOWN); pump(30); shot("bigscreen-shelf-expanded.png")
         press(Nav.RIGHT); pump(30); shot("bigscreen-shelf-next.png")
+        press(Nav.RIGHT); pump(30); shot("bigscreen-shelf-blurred.png")   // game 2 has no wide art
         scene.close()
     }
 }
