@@ -1,4 +1,9 @@
-# Material Frontend
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/wordmark-stacked-dark.svg">
+    <img src="docs/brand/wordmark-stacked-light.svg" alt="Material Frontend" width="340">
+  </picture>
+</p>
 
 > **Work in progress.** Things are changing quickly and some features are still rough around the edges.
 
