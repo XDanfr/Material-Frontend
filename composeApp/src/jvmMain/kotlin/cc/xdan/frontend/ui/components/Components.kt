@@ -33,6 +33,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -323,9 +326,25 @@ fun rememberLogoPin(game: Game): cc.xdan.frontend.model.LogoPin {
     return game.effectiveLogoPin(global)
 }
 
-fun cc.xdan.frontend.model.LogoPin.alignment(): androidx.compose.ui.Alignment = when (this) {
-    cc.xdan.frontend.model.LogoPin.BOTTOM_LEFT -> androidx.compose.ui.Alignment.BottomStart
-    cc.xdan.frontend.model.LogoPin.BOTTOM_CENTER -> androidx.compose.ui.Alignment.BottomCenter
-    cc.xdan.frontend.model.LogoPin.CENTER -> androidx.compose.ui.Alignment.Center
-    cc.xdan.frontend.model.LogoPin.UPPER_CENTER -> androidx.compose.ui.Alignment.TopCenter
+fun cc.xdan.frontend.model.LogoPin.alignment(): androidx.compose.ui.Alignment = androidx.compose.ui.BiasAlignment((col - 1).toFloat(), (row - 1).toFloat())
+
+/**
+ * A game's logo placed on wide art at its anchor, [widthFraction] of the space wide. Growing it keeps the
+ * anchor fixed (bottom left grows up and right; centre grows outwards). With no logo, the title stands in.
+ * Always the same nodes (images swap, alpha changes) — see ShelfCard.
+ */
+@Composable
+fun PlacedLogo(logo: androidx.compose.ui.graphics.ImageBitmap?, title: String, pin: cc.xdan.frontend.model.LogoPin, widthFraction: Float,
+               modifier: Modifier = Modifier, titleStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleLargeEmphasized,
+               showTitle: Boolean = true, align: androidx.compose.ui.Alignment? = null) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxSize()) {
+        val a = align ?: pin.alignment()
+        val clear = androidx.compose.ui.graphics.painter.ColorPainter(androidx.compose.ui.graphics.Color.Transparent)
+        androidx.compose.foundation.Image(logo?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, title,
+            Modifier.align(a).width(maxWidth * widthFraction.coerceIn(0.08f, 1f)).heightIn(max = maxHeight * 0.7f),
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit, alignment = a)
+        Text(title, Modifier.align(a).widthIn(max = maxWidth * 0.8f).alpha(if (logo == null && showTitle) 1f else 0f), style = titleStyle,
+            color = androidx.compose.ui.graphics.Color.White, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            textAlign = when (pin.col) { 0 -> androidx.compose.ui.text.style.TextAlign.Start; 1 -> androidx.compose.ui.text.style.TextAlign.Center; else -> androidx.compose.ui.text.style.TextAlign.End })
+    }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,6 +100,7 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
     var menuOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
+    var adjustingLogo by remember { mutableStateOf(false) }
     val (heroPath, heroNeedsBlur) = cc.xdan.frontend.ui.components.rememberHeroArt(game)
     val hero by rememberImage(heroPath, 1280)
     val logo by rememberImage(game.assets.logo, 600)
@@ -112,8 +114,7 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                 if (h != null) Image(h, null, Modifier.fillMaxSize().heroBlur(heroNeedsBlur), contentScale = ContentScale.Crop)
                 else CoverArt(game, Modifier.fillMaxSize(), preferWide = true)
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to MaterialTheme.colorScheme.surfaceContainerLow)))
-                val pin = cc.xdan.frontend.ui.components.rememberLogoPin(game)
-                logo?.let { Image(it, game.title, Modifier.align(pin.alignment()).padding(16.dp).heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit) }
+                cc.xdan.frontend.ui.components.PlacedLogo(logo, game.title, cc.xdan.frontend.ui.components.rememberLogoPin(game), game.effectiveLogoWidth(), Modifier.padding(16.dp), showTitle = false)
                 IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
                     Icon(Icons.Outlined.Close, "Close", Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f), RoundedCornerShape(50)).padding(6.dp))
                 }
@@ -164,11 +165,8 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
                         IconButton(shapes = IconButtonDefaults.shapes(), onClick = { moreOpen = true }) { Icon(Icons.Outlined.MoreVert, "More") }
                         DropdownMenu(moreOpen, { moreOpen = false }) {
                             DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Outlined.Edit, null) }, onClick = { renaming = true; moreOpen = false })
-                            // Logo position for this game only (the global setting never changes it); Reset returns it to the default.
-                            cc.xdan.frontend.model.LogoPin.entries.forEach { pin ->
-                                DropdownMenuItem(text = { Text("Logo: ${pin.label}" + if (game.logoPin == pin) "  ✓" else "") }, onClick = { app.setLogoPin(game.id, pin); moreOpen = false })
-                            }
-                            if (game.logoPin != null) DropdownMenuItem(text = { Text("Reset logo position") }, onClick = { app.setLogoPin(game.id, null); moreOpen = false })
+                            DropdownMenuItem(text = { Text("Adjust logo…") }, onClick = { adjustingLogo = true; moreOpen = false })
+                            if (game.logoPin != null || game.logoWidth != null) DropdownMenuItem(text = { Text("Reset logo to default") }, onClick = { app.setLogo(game.id, null, null); moreOpen = false })
                             DropdownMenuItem(text = { Text("Re-fetch artwork") }, onClick = { app.scraper.scrape(listOf(game), force = true); moreOpen = false })
                             if (File(game.path).exists()) DropdownMenuItem(text = { Text("Show in folder") }, onClick = { Launchers.reveal(File(game.path)); moreOpen = false })
                             DropdownMenuItem(text = { Text(if (game.hidden) "Unhide" else "Hide") }, onClick = { app.setHidden(setOf(game.id), !game.hidden); moreOpen = false })
@@ -202,6 +200,52 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
             confirmButton = { Button(shapes = ButtonDefaults.shapes(), onClick = { app.rename(game.id, t.trim()); renaming = false }, enabled = t.isNotBlank()) { Text("Save") } },
             dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { renaming = false }) { Text("Cancel") } })
     }
+    if (adjustingLogo) LogoDialog(game, hero, logo, onClose = { adjustingLogo = false })
+}
+
+/** Mouse/keyboard logo editor: preview, the nine anchors as buttons, a size slider, Reset / Cancel / Save. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LogoDialog(game: Game, hero: androidx.compose.ui.graphics.ImageBitmap?, logo: androidx.compose.ui.graphics.ImageBitmap?, onClose: () -> Unit) {
+    val app = LocalApp.current
+    val global = app.settings.state.collectAsState().value.logoPin
+    var pin by remember { mutableStateOf(game.effectiveLogoPin(global)) }
+    var width by remember { mutableStateOf(game.effectiveLogoWidth()) }
+    AlertDialog(onDismissRequest = onClose, title = { Text("Logo") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Box(Modifier.width(520.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                    hero?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                    cc.xdan.frontend.ui.components.PlacedLogo(logo, game.title, pin, width, Modifier.padding(16.dp))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        (0..2).forEach { r ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                (0..2).forEach { c ->
+                                    val p = cc.xdan.frontend.model.LogoPin.entries.first { it.row == r && it.col == c }
+                                    val sel = p == pin
+                                    Box(Modifier.size(40.dp, 28.dp).clip(RoundedCornerShape(8.dp))
+                                        .background(if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh)
+                                        .clickable { pin = p })
+                                }
+                            }
+                        }
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("${pin.label} · ${(width * 100).toInt()}% wide", style = MaterialTheme.typography.labelLarge)
+                        androidx.compose.material3.Slider(width, { width = it }, valueRange = 0.12f..0.9f)
+                    }
+                }
+            }
+        },
+        confirmButton = { Button(shapes = ButtonDefaults.shapes(), onClick = { app.setLogo(game.id, pin, width); onClose() }) { Text("Save") } },
+        dismissButton = {
+            Row {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { app.setLogo(game.id, null, null); onClose() }) { Text("Reset to default") }
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = onClose) { Text("Cancel") }
+            }
+        })
 }
 
 /** Favourite toggle whose container morphs circle → cookie on select (one of the few "hero" micro-interactions). */

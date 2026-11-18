@@ -63,6 +63,10 @@ data class Game(
     val logoPin: LogoPin? = null,
     /** The game's own default (Steam's pinned position), used when the global setting is "Match Steam". */
     val defaultLogoPin: LogoPin? = null,
+    /** Your logo size for this game (fraction of the card's width); null = default. */
+    val logoWidth: Float? = null,
+    /** Steam's logo width for this game (fraction), when known. */
+    val defaultLogoWidth: Float? = null,
     /** False for owned-but-not-installed launcher games (shown greyed out with Install). */
     val installed: Boolean = true,
     /** Operating systems the game supports (Steam: windows/macos/linux), for installing. */
@@ -79,6 +83,7 @@ data class Game(
 
     /** Per-game choice → global choice → the game's Steam default → bottom left. */
     fun effectiveLogoPin(global: LogoPin?): LogoPin = logoPin ?: global ?: defaultLogoPin ?: LogoPin.BOTTOM_LEFT
+    fun effectiveLogoWidth(): Float = logoWidth ?: defaultLogoWidth ?: LogoPin.DEFAULT_WIDTH
 }
 
 @Serializable
@@ -221,11 +226,21 @@ data class Settings(
 /** What the Big Screen spotlight shows. */
 enum class SpotlightMode(val label: String) { RECENT("Recently played"), FAVOURITES("Favourites"), RANDOM("Random"), CHOSEN("Chosen games") }
 
-/** Where the logo sits on wide art (Steam's pinned positions). */
-enum class LogoPin(val label: String, val steam: String) {
-    BOTTOM_LEFT("Bottom left", "BottomLeft"), BOTTOM_CENTER("Bottom centre", "BottomCenter"),
-    CENTER("Centre", "CenterCenter"), UPPER_CENTER("Top centre", "UpperCenter");
-    companion object { fun fromSteam(s: String?) = entries.firstOrNull { it.steam.equals(s, true) } }
+/** Where the logo sits on wide art: a 3×3 grid. Steam's four pinned positions map onto it (names kept for saved data). */
+enum class LogoPin(val label: String, val steam: String?, val row: Int, val col: Int) {
+    TOP_LEFT("Top left", null, 0, 0), UPPER_CENTER("Top centre", "UpperCenter", 0, 1), TOP_RIGHT("Top right", null, 0, 2),
+    CENTER_LEFT("Centre left", null, 1, 0), CENTER("Centre", "CenterCenter", 1, 1), CENTER_RIGHT("Centre right", null, 1, 2),
+    BOTTOM_LEFT("Bottom left", "BottomLeft", 2, 0), BOTTOM_CENTER("Bottom centre", "BottomCenter", 2, 1), BOTTOM_RIGHT("Bottom right", null, 2, 2);
+
+    /** The neighbouring preset (D-pad), staying put at the edges. */
+    fun moved(dRow: Int, dCol: Int): LogoPin = entries.first { it.row == (row + dRow).coerceIn(0, 2) && it.col == (col + dCol).coerceIn(0, 2) }
+
+    companion object {
+        fun fromSteam(s: String?) = entries.firstOrNull { it.steam.equals(s, true) }
+        /** Steam's positions (what the global setting offers). */
+        val steamPins = entries.filter { it.steam != null }
+        const val DEFAULT_WIDTH = 0.4f
+    }
 }
 
 enum class XmbBackground(val label: String) { WAVES("Waves"), SHAPES("Shapes"), SQUIGGLES("Squiggles"), MIX("Mix"), OFF("Off") }

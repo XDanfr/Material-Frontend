@@ -282,7 +282,11 @@ class AppController {
                 val ids = merged.mapNotNull { it.steamAppId }.toSet()
                 val roots = listOfNotNull(steamLib.steamRoot()) + CompatSteam.crossoverRoots()
                 val info = roots.map { File(it, "appcache/appinfo.vdf") }.filter { it.isFile }.fold(emptyMap<String, SteamAppInfo.App>()) { acc, f -> SteamAppInfo.read(f, ids) + acc }
-                merged.map { g -> g.steamAppId?.let { info[it] }?.logoPosition?.let(cc.xdan.frontend.model.LogoPin::fromSteam)?.let { g.copy(defaultLogoPin = it) } ?: g }
+                merged.map { g ->
+                    val a = g.steamAppId?.let { info[it] } ?: return@map g
+                    g.copy(defaultLogoPin = cc.xdan.frontend.model.LogoPin.fromSteam(a.logoPosition) ?: g.defaultLogoPin,
+                        defaultLogoWidth = a.logoWidthPct?.takeIf { it in 5f..100f }?.let { it / 100f } ?: g.defaultLogoWidth)
+                }
             }.getOrDefault(merged)
             library.update { all }
             _scan.value = ScanState(false, "", all.size)
@@ -364,6 +368,8 @@ class AppController {
     }
 
     fun setLogoPin(id: String, pin: cc.xdan.frontend.model.LogoPin?) = library.updateGame(id) { it.copy(logoPin = pin) }
+    /** This game's own logo placement; nulls reset it to the default (global setting / Steam). */
+    fun setLogo(id: String, pin: cc.xdan.frontend.model.LogoPin?, width: Float?) = library.updateGame(id) { it.copy(logoPin = pin, logoWidth = width) }
 
     fun rename(id: String, title: String) {
         val before = library.value.firstOrNull { it.id == id } ?: return

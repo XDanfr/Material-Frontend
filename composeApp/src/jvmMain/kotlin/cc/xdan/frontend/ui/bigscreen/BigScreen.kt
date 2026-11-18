@@ -1,5 +1,6 @@
 package cc.xdan.frontend.ui.bigscreen
 
+import cc.xdan.frontend.ui.components.PlacedLogo
 import cc.xdan.frontend.ui.components.alignment
 import cc.xdan.frontend.ui.components.rememberLogoPin
 import cc.xdan.frontend.ui.components.rememberHeroArt
@@ -139,6 +140,8 @@ private sealed interface Overlay {
     data class Manage(val game: Game, val focus: Int = 0, val armedRemove: Boolean = false) : Overlay
     data class Rename(val game: Game) : Overlay
     data object Search : Overlay
+    /** Move the logo between the 3×3 presets with the D-pad; LB/RB size it from its anchor. */
+    data class LogoEditor(val game: Game, val pin: cc.xdan.frontend.model.LogoPin, val width: Float) : Overlay
     /** Exit, switch mode, fullscreen, sleep/restart/shut down; [confirming] asks before restart/shut down. */
     data class Power(val focus: Int = 0, val confirming: cc.xdan.frontend.AppController.Power? = null) : Overlay
     /** "This title isn't installed. Add anyway?" */
@@ -277,6 +280,21 @@ fun BigScreen() {
                     }
                 }
                 is Overlay.Rename, Overlay.Search -> { /* handled by their own overlay */ }
+                is Overlay.LogoEditor -> {
+                    fun upd(o: Overlay.LogoEditor) { overlays[overlays.lastIndex] = o }
+                    when (e.nav) {
+                        Nav.UP -> upd(top.copy(pin = top.pin.moved(-1, 0)))
+                        Nav.DOWN -> upd(top.copy(pin = top.pin.moved(1, 0)))
+                        Nav.LEFT -> upd(top.copy(pin = top.pin.moved(0, -1)))
+                        Nav.RIGHT -> upd(top.copy(pin = top.pin.moved(0, 1)))
+                        Nav.PREV_TAB, Nav.PREV_PAGE -> upd(top.copy(width = (top.width - 0.04f).coerceAtLeast(0.12f)))
+                        Nav.NEXT_TAB, Nav.NEXT_PAGE -> upd(top.copy(width = (top.width + 0.04f).coerceAtMost(0.9f)))
+                        Nav.CONFIRM -> { app.setLogo(top.game.id, top.pin, top.width); closeLogoEditor(overlays, top.game.copy(logoPin = top.pin, logoWidth = top.width)) }
+                        Nav.ALT -> { app.setLogo(top.game.id, null, null); closeLogoEditor(overlays, top.game.copy(logoPin = null, logoWidth = null)) }
+                        Nav.BACK -> overlays.removeLast()
+                        else -> {}
+                    }
+                }
                 is Overlay.Power -> {
                     val n = if (top.confirming != null) 2 else app.powerOptions().size
                     when (e.nav) {
@@ -369,6 +387,7 @@ fun BigScreen() {
                 is Overlay.Details -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Favourite", Pad.EAST to "Back")
                 is Overlay.Manage -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Back")
                 is Overlay.Rename -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Save", Pad.EAST to "Cancel")
+                is Overlay.LogoEditor -> listOf(Pad.LEFT to "Move", Pad.LB to "", Pad.RB to "Size", Pad.SOUTH to "Save", Pad.WEST to "Reset to default", Pad.EAST to "Cancel")
                 is Overlay.Menu, is Overlay.LaunchWith, is Overlay.ConfirmSpotlight, is Overlay.Power -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
                 Overlay.Search -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Delete", Pad.START to "Results", Pad.EAST to "Back")
                 null -> if (powerFocus) listOf(Pad.SOUTH to "Power options", Pad.LEFT to "Tabs")
@@ -396,6 +415,7 @@ fun BigScreen() {
                 }
                 is Overlay.Power -> MenuOverlay(if (o.confirming != null) listOf(o.confirming.label, "Cancel") else app.powerOptions().map { it.label },
                     o.focus, title = o.confirming?.confirm ?: "Power") { i -> powerAction(o, i, app, overlays) }
+                is Overlay.LogoEditor -> LogoEditorOverlay(o)
                 is Overlay.Rename -> RenameOverlay(o.game, onDone = { t ->
                     if (t == null) { /* cancelled */ }
                     else if (o.game.id == NAME_ID) app.updateSettings { it.copy(userName = t.trim().take(32)) }
@@ -549,12 +569,7 @@ private fun ShelfCard(g: Game, rowActive: Boolean, focused: Boolean, onClick: ()
             Image(hero?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, g.title,
                 Modifier.fillMaxSize().heroBlur(wideArt == null || wideNeedsBlur), contentScale = ContentScale.Crop)
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
-            val pin = rememberLogoPin(g)
-            Box(Modifier.align(pin.alignment()).padding(20.dp)) {
-                Image(logo?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, g.title,
-                    Modifier.heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit, alignment = pin.alignment())
-                Text(g.title, Modifier.alpha(if (logo == null) 1f else 0f), style = MaterialTheme.typography.titleLargeEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
+            PlacedLogo(logo, g.title, rememberLogoPin(g), g.effectiveLogoWidth(), Modifier.padding(20.dp))
         }
     }
 }
@@ -810,6 +825,42 @@ private fun powerAction(o: Overlay.Power, i: Int, app: cc.xdan.frontend.AppContr
     if (p.confirm != null) { if (idx >= 0) overlays[idx] = Overlay.Power(confirming = p) } else { overlays.clear(); app.power(p) }
 }
 
+/** Leaves the editor and refreshes the More… menu underneath with the saved placement. */
+private fun closeLogoEditor(overlays: MutableList<Overlay>, updated: Game) {
+    overlays.removeLast()
+    overlays.indexOfLast { it is Overlay.Manage }.takeIf { it >= 0 }?.let { i -> overlays[i] = (overlays[i] as Overlay.Manage).copy(game = updated) }
+}
+
+/** Big 16:9 preview with the nine anchors marked; the logo springs between them and grows from its anchor. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LogoEditorOverlay(o: Overlay.LogoEditor) {
+    val (heroPath, heroNeedsBlur) = rememberHeroArt(o.game)
+    val hero by rememberImage(heroPath ?: o.game.assets.cover, 1600)
+    val logo by rememberImage(o.game.assets.logo, 800)
+    val motion = MaterialTheme.motionScheme
+    val width by animateFloatAsState(o.width, motion.fastSpatialSpec())
+    val bx by animateFloatAsState((o.pin.col - 1).toFloat(), motion.defaultSpatialSpec())
+    val by by animateFloatAsState((o.pin.row - 1).toFloat(), motion.defaultSpatialSpec())
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            Text("Logo · ${o.game.title}", style = MaterialTheme.typography.headlineSmallEmphasized)
+            Box(Modifier.width(960.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+                hero?.let { Image(it, null, Modifier.fillMaxSize().heroBlur(heroNeedsBlur || heroPath == null), contentScale = ContentScale.Crop) }
+                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.6f))))
+                // The nine anchors.
+                cc.xdan.frontend.model.LogoPin.entries.forEach { p ->
+                    Box(Modifier.align(p.alignment()).padding(28.dp).size(if (p == o.pin) 14.dp else 10.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(if (p == o.pin) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.45f)))
+                }
+                PlacedLogo(logo, o.game.title, o.pin, width, Modifier.padding(28.dp),
+                    titleStyle = MaterialTheme.typography.displaySmallEmphasized, align = androidx.compose.ui.BiasAlignment(bx, by))
+            }
+            Text("${o.pin.label} · ${(o.width * 100).toInt()}% wide", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
 private const val NAME_ID = "__username"
 private const val HIDDEN = "__hidden"
 
@@ -836,8 +887,8 @@ private fun manageItems(g: Game, s: cc.xdan.frontend.model.Settings) = listOf(if
     // Chosen mode: you pick the list. Other modes: you can only keep a game out.
     if (s.spotlight == cc.xdan.frontend.model.SpotlightMode.CHOSEN) { if (g.id in s.spotlightGames) "Remove from spotlight" else "Add to spotlight" }
     else { if (g.id in s.spotlightHidden) "Show in spotlight" else "Hide from spotlight" },
-    "Logo position: " + g.effectiveLogoPin(s.logoPin).label + if (g.logoPin != null) "" else " (default)") +
-    listOfNotNull("Reset logo position".takeIf { g.logoPin != null })
+    "Adjust logo…") +
+    listOfNotNull("Reset logo to default".takeIf { g.logoPin != null || g.logoWidth != null })
 
 private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController, overlays: MutableList<Overlay>) {
     when (o.focus) {
@@ -853,15 +904,10 @@ private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController,
             else { app.toggleSpotlight(o.game.id); overlays.removeAt(overlays.lastIndex) }
         }
         // Each press moves the logo to the next spot; this game keeps it whatever the global setting says.
-        4 -> {
-            val pins = cc.xdan.frontend.model.LogoPin.entries
-            val next = pins[(o.game.effectiveLogoPin(app.settings.value.logoPin).ordinal + 1) % pins.size]
-            app.setLogoPin(o.game.id, next)
-            overlays.indexOfFirst { it is Overlay.Manage }.takeIf { it >= 0 }?.let { overlays[it] = o.copy(game = o.game.copy(logoPin = next)) }
-        }
+        4 -> overlays += Overlay.LogoEditor(o.game, o.game.effectiveLogoPin(app.settings.value.logoPin), o.game.effectiveLogoWidth())
         5 -> {
-            app.setLogoPin(o.game.id, null)
-            overlays.indexOfFirst { it is Overlay.Manage }.takeIf { it >= 0 }?.let { overlays[it] = o.copy(game = o.game.copy(logoPin = null), focus = 4) }
+            app.setLogo(o.game.id, null, null)
+            overlays.indexOfFirst { it is Overlay.Manage }.takeIf { it >= 0 }?.let { overlays[it] = o.copy(game = o.game.copy(logoPin = null, logoWidth = null), focus = 4) }
         }
     }
 }
@@ -901,14 +947,11 @@ private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (
             val pin = rememberLogoPin(g)
             androidx.compose.animation.AnimatedVisibility(current, Modifier.fillMaxSize(), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
             Box(Modifier.fillMaxSize()) {
-            // Logo at its pinned spot (bottom left sits above the info line).
-            val l = logo
-            if (l != null && pin != cc.xdan.frontend.model.LogoPin.BOTTOM_LEFT)
-                Image(l, g.title, Modifier.align(pin.alignment()).padding(horizontal = 28.dp, vertical = if (pin == cc.xdan.frontend.model.LogoPin.BOTTOM_CENTER) 64.dp else 28.dp)
-                    .heightIn(max = 110.dp).widthIn(max = 420.dp), contentScale = ContentScale.Fit)
+            // Logo at its anchor; the bottom row sits above the info line.
+            PlacedLogo(logo, g.title, pin, g.effectiveLogoWidth(),
+                Modifier.padding(start = 28.dp, end = 28.dp, top = 28.dp, bottom = if (pin.row == 2) 60.dp else 28.dp),
+                titleStyle = MaterialTheme.typography.headlineMediumEmphasized)
             Column(Modifier.align(Alignment.BottomStart).padding(28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (l != null) { if (pin == cc.xdan.frontend.model.LogoPin.BOTTOM_LEFT) Image(l, g.title, Modifier.heightIn(max = 96.dp).widthIn(max = 380.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart) }
-                else Text(g.title, style = MaterialTheme.typography.headlineMediumEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(listOfNotNull(Platforms.get(g.platformId).name, g.lastPlayed?.let { "Played ${formatAgo(it).lowercase()}" } ?: if (g.favorite) "Favourite" else "New")
                     .joinToString("  ·  "), style = MaterialTheme.typography.titleSmall, color = Color.White.copy(alpha = 0.85f), maxLines = 1)
             }
