@@ -57,6 +57,7 @@ fun main(args: Array<String>) {
         // Keep in sync when the OS changes it (macOS green button / Globe-F, window manager shortcuts).
         LaunchedEffect(Unit) { snapshotFlow { state.placement }.drop(1).collect { app.fullscreen.value = it == WindowPlacement.Fullscreen } }
         LaunchedEffect(Unit) { app.minimizeRequests.collect { state.isMinimized = it } }
+        LaunchedEffect(Unit) { app.exitRequests.collect { app.shutdown(); exitApplication() } }
 
         Window(
             onCloseRequest = { app.shutdown(); exitApplication() },

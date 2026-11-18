@@ -77,6 +77,12 @@ import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.ViewWeek
+import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -180,12 +186,24 @@ fun XmbScreen() {
             }
         }
     }
-    val categories = listOf(settingsCategory) + gameCategories
+    var sidebar by remember { mutableStateOf<Sidebar?>(null) }
+    // Power at the far right, like the PS3's end of the bar.
+    val powerCategory = Category("Power", Icons.Outlined.PowerSettingsNew, app.powerOptions().map { p ->
+        ActionItem(p.label, when (p) {
+            cc.xdan.frontend.AppController.Power.EXIT -> "Close the app"
+            cc.xdan.frontend.AppController.Power.FULLSCREEN -> "Window or full screen"
+            cc.xdan.frontend.AppController.Power.SLEEP, cc.xdan.frontend.AppController.Power.RESTART, cc.xdan.frontend.AppController.Power.SHUT_DOWN -> "This computer"
+            else -> "Switch theme"
+        }, powerIcon(p)) {
+            val c = p.confirm
+            if (c != null) sidebar = Sidebar(c, listOf(p.label, "Cancel"), focus = 1) { k -> if (k == 0) app.power(p) } else app.power(p)
+        }
+    })
+    val categories = listOf(settingsCategory) + gameCategories + powerCategory
     var cat by remember { mutableIntStateOf(if (categories.size > 1) 1 else 0) }
     val itemIdx = remember { mutableStateMapOf<Int, Int>() }
     var page by remember { mutableStateOf<SettingsSection?>(null) }
     var pageIdx by remember { mutableIntStateOf(0) }
-    var sidebar by remember { mutableStateOf<Sidebar?>(null) }
     if (cat > categories.lastIndex) cat = categories.lastIndex
     val current = categories.getOrNull(cat)
     val focusedItem = current?.items?.getOrNull(itemIdx[cat] ?: 0)
@@ -385,4 +403,15 @@ private fun SidebarPanel(sb: Sidebar, pressPulse: Int, onPick: (Int) -> Unit) {
             }
         }
     }
+}
+
+private fun powerIcon(p: cc.xdan.frontend.AppController.Power): ImageVector = when (p) {
+    cc.xdan.frontend.AppController.Power.EXIT -> Icons.Outlined.Logout
+    cc.xdan.frontend.AppController.Power.BIGSCREEN -> Icons.Outlined.Tv
+    cc.xdan.frontend.AppController.Power.XMB -> Icons.Outlined.ViewWeek
+    cc.xdan.frontend.AppController.Power.LIBRARY -> Icons.Outlined.GridView
+    cc.xdan.frontend.AppController.Power.FULLSCREEN -> Icons.Outlined.Fullscreen
+    cc.xdan.frontend.AppController.Power.SLEEP -> Icons.Outlined.Bedtime
+    cc.xdan.frontend.AppController.Power.RESTART -> Icons.Outlined.RestartAlt
+    cc.xdan.frontend.AppController.Power.SHUT_DOWN -> Icons.Outlined.PowerSettingsNew
 }

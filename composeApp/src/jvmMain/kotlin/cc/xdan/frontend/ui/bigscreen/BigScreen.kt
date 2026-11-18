@@ -68,6 +68,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BatteryFull
 import androidx.compose.material.icons.outlined.Gamepad
 import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -134,6 +135,8 @@ private sealed interface Overlay {
     data class Manage(val game: Game, val focus: Int = 0, val armedRemove: Boolean = false) : Overlay
     data class Rename(val game: Game) : Overlay
     data object Search : Overlay
+    /** Exit, switch mode, fullscreen, sleep/restart/shut down; [confirming] asks before restart/shut down. */
+    data class Power(val focus: Int = 0, val confirming: cc.xdan.frontend.AppController.Power? = null) : Overlay
     /** "This title isn't installed. Add anyway?" */
     data class ConfirmSpotlight(val game: Game, val message: String, val focus: Int = 0) : Overlay
 }
@@ -167,6 +170,8 @@ fun BigScreen() {
     var row by remember { mutableIntStateOf(-1) }
     var spotIdx by remember { mutableIntStateOf(0) }
     var barFocus by remember { mutableStateOf(false) }
+    var powerFocus by remember { mutableStateOf(false) }  // the power button at the end of the tab bar
+    if (!barFocus) powerFocus = false
     if (row == -1 && featured.isEmpty()) row = 0
     // Shelves can shrink (a game installed/removed, favourites changed): keep focus on a real tile.
     if (row >= shelves.size) row = if (shelves.isEmpty()) -1 else shelves.lastIndex
@@ -268,6 +273,16 @@ fun BigScreen() {
                     }
                 }
                 is Overlay.Rename, Overlay.Search -> { /* handled by their own overlay */ }
+                is Overlay.Power -> {
+                    val n = if (top.confirming != null) 2 else app.powerOptions().size
+                    when (e.nav) {
+                        Nav.UP -> overlays[overlays.lastIndex] = top.copy(focus = (top.focus - 1).coerceAtLeast(0))
+                        Nav.DOWN -> overlays[overlays.lastIndex] = top.copy(focus = (top.focus + 1).coerceAtMost(n - 1))
+                        Nav.CONFIRM -> powerAction(top, top.focus, app, overlays)
+                        Nav.BACK -> if (top.confirming != null) overlays[overlays.lastIndex] = Overlay.Power() else overlays.removeLast()
+                        else -> {}
+                    }
+                }
                 is Overlay.ConfirmSpotlight -> when (e.nav) {
                     Nav.UP, Nav.DOWN -> overlays[overlays.lastIndex] = top.copy(focus = 1 - top.focus)
                     Nav.CONFIRM -> { if (top.focus == 0) app.toggleSpotlight(top.game.id); overlays.removeLast(); overlays.lastOrNull()?.let { if (it is Overlay.Manage) overlays.removeLast() } }
@@ -275,9 +290,12 @@ fun BigScreen() {
                     else -> {}
                 }
                 null -> if (barFocus) when (e.nav) {
-                    Nav.LEFT, Nav.PREV_TAB -> tab = Tab.entries[(tab.ordinal + Tab.entries.size - 1) % Tab.entries.size]
-                    Nav.RIGHT, Nav.NEXT_TAB -> tab = Tab.entries[(tab.ordinal + 1) % Tab.entries.size]
-                    Nav.DOWN, Nav.CONFIRM, Nav.BACK -> barFocus = false
+                    Nav.LEFT -> if (powerFocus) powerFocus = false else tab = Tab.entries[(tab.ordinal + Tab.entries.size - 1) % Tab.entries.size]
+                    Nav.RIGHT -> if (tab == Tab.entries.last()) powerFocus = true else tab = Tab.entries[tab.ordinal + 1]
+                    Nav.PREV_TAB -> { powerFocus = false; tab = Tab.entries[(tab.ordinal + Tab.entries.size - 1) % Tab.entries.size] }
+                    Nav.NEXT_TAB -> { powerFocus = false; tab = Tab.entries[(tab.ordinal + 1) % Tab.entries.size] }
+                    Nav.CONFIRM -> if (powerFocus) overlays += Overlay.Power() else barFocus = false
+                    Nav.DOWN, Nav.BACK -> barFocus = false
                     Nav.MENU, Nav.GUIDE -> overlays += Overlay.Menu()
                     Nav.SEARCH -> overlays += Overlay.Search
                     else -> {}
@@ -326,7 +344,7 @@ fun BigScreen() {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Backdrop(focused)
         Column(Modifier.fillMaxSize()) {
-            TopBar(tab, family, barFocus) { tab = it; barFocus = false }
+            TopBar(tab, family, barFocus && !powerFocus, powerFocus, onPower = { overlays += Overlay.Power() }) { tab = it; barFocus = false }
             val motion = MaterialTheme.motionScheme
             AnimatedContent(tab, Modifier.weight(1f), transitionSpec = {
                 (fadeIn(motion.defaultEffectsSpec()) + slideInHorizontally(motion.defaultSpatialSpec()) { it / 10 * (if (targetState > initialState) 1 else -1) })
@@ -347,9 +365,10 @@ fun BigScreen() {
                 is Overlay.Details -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Favourite", Pad.EAST to "Back")
                 is Overlay.Manage -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Back")
                 is Overlay.Rename -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Save", Pad.EAST to "Cancel")
-                is Overlay.Menu, is Overlay.LaunchWith, is Overlay.ConfirmSpotlight -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
+                is Overlay.Menu, is Overlay.LaunchWith, is Overlay.ConfirmSpotlight, is Overlay.Power -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
                 Overlay.Search -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Delete", Pad.START to "Results", Pad.EAST to "Back")
-                null -> if (barFocus) listOf(Pad.LEFT to "Switch tab", Pad.DOWN to "Back to content")
+                null -> if (powerFocus) listOf(Pad.SOUTH to "Power options", Pad.LEFT to "Tabs")
+                        else if (barFocus) listOf(Pad.LEFT to "Switch tab", Pad.DOWN to "Back to content")
                         else if (tab == Tab.SETTINGS) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Value", Pad.LB to "", Pad.RB to "Tabs", Pad.EAST to "Home")
                         else listOf(Pad.SOUTH to "Details", Pad.WEST to "Favourite", Pad.NORTH to "Search", Pad.LB to "", Pad.RB to "Tabs", Pad.START to "Menu")
             }.map { (p, l) -> (if (settings.nintendoConfirm && p == Pad.SOUTH) Pad.EAST else if (settings.nintendoConfirm && p == Pad.EAST) Pad.SOUTH else p) to l },
@@ -371,6 +390,8 @@ fun BigScreen() {
                 is Overlay.ConfirmSpotlight -> MenuOverlay(listOf("Add anyway", "Cancel"), o.focus, title = o.message) { i ->
                     if (i == 0) app.toggleSpotlight(o.game.id); overlays.remove(o); overlays.lastOrNull()?.let { if (it is Overlay.Manage) overlays.remove(it) }
                 }
+                is Overlay.Power -> MenuOverlay(if (o.confirming != null) listOf(o.confirming.label, "Cancel") else app.powerOptions().map { it.label },
+                    o.focus, title = o.confirming?.confirm ?: "Power") { i -> powerAction(o, i, app, overlays) }
                 is Overlay.Rename -> RenameOverlay(o.game, onDone = { t ->
                     if (o.game.id == NAME_ID) app.updateSettings { it.copy(userName = t.trim().take(32)) }
                     else if (t.isNotBlank()) app.rename(o.game.id, t.trim())
@@ -396,7 +417,7 @@ private fun Backdrop(game: Game?) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun TopBar(tab: Tab, family: ControllerFamily, barFocus: Boolean, onTab: (Tab) -> Unit) {
+private fun TopBar(tab: Tab, family: ControllerFamily, barFocus: Boolean, powerFocus: Boolean, onPower: () -> Unit, onTab: (Tab) -> Unit) {
     val app = LocalApp.current
     val pads by app.controllers.controllers.collectAsState()
     val time by produceState(LocalTime.now()) { while (true) { value = LocalTime.now(); delay(1000) } }
@@ -424,6 +445,10 @@ private fun TopBar(tab: Tab, family: ControllerFamily, barFocus: Boolean, onTab:
                 }
             }
             if (LocalApp.current.settings.state.collectAsState().value.bigScreenClock) Text(time.format(DateTimeFormatter.ofPattern("HH:mm")), style = MaterialTheme.typography.titleLarge.flex { copy(wdth = 76f, wght = 560f, rond = 60f) })
+            Box(Modifier.size(48.dp).pressBounce(LocalPressPulse.current, powerFocus).focusEmphasis(powerFocus, 24.dp, 24.dp, 1.1f).clip(androidx.compose.foundation.shape.CircleShape)
+                .background(if (powerFocus) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent).clickable(onClick = onPower), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.PowerSettingsNew, "Power", tint = if (powerFocus) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -736,6 +761,13 @@ private fun SearchOverlay(games: List<Game>, onClose: () -> Unit, onOpen: (Game)
     }
 }
 
+
+private fun powerAction(o: Overlay.Power, i: Int, app: cc.xdan.frontend.AppController, overlays: MutableList<Overlay>) {
+    val idx = overlays.indexOf(o)
+    if (o.confirming != null) { if (i == 0) { overlays.clear(); app.power(o.confirming) } else if (idx >= 0) overlays[idx] = Overlay.Power(); return }
+    val p = app.powerOptions().getOrNull(i) ?: return
+    if (p.confirm != null) { if (idx >= 0) overlays[idx] = Overlay.Power(confirming = p) } else { overlays.clear(); app.power(p) }
+}
 
 private const val NAME_ID = "__username"
 private const val HIDDEN = "__hidden"

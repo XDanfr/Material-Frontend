@@ -475,9 +475,46 @@ class AppController {
 
     fun platformName(id: String) = Platforms.get(id).name
 
+    /** Exit / mode / fullscreen / system power, shared by Big Screen and XMB. */
+    enum class Power(val label: String, val confirm: String? = null) {
+        EXIT("Exit Material Frontend"), BIGSCREEN("Switch to Big Screen"), XMB("Switch to XMB"), LIBRARY("Switch to Library view"),
+        FULLSCREEN("Toggle fullscreen"), SLEEP("Sleep"), RESTART("Restart", "Restart this computer?"), SHUT_DOWN("Shut down", "Shut down this computer?"),
+    }
+    /** Power options for the current mode (the mode you're in isn't offered as a switch). */
+    fun powerOptions(): List<Power> = Power.entries.filter {
+        !(it == Power.BIGSCREEN && mode.value == UiMode.BIGSCREEN) && !(it == Power.XMB && mode.value == UiMode.XMB)
+    }
+    val exitRequests = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    fun power(p: Power) {
+        when (p) {
+            Power.EXIT -> exitRequests.tryEmit(Unit)
+            Power.BIGSCREEN -> mode.value = UiMode.BIGSCREEN
+            Power.XMB -> mode.value = UiMode.XMB
+            Power.LIBRARY -> { mode.value = UiMode.LIST; fullscreen.value = false }
+            Power.FULLSCREEN -> fullscreen.value = !fullscreen.value
+            Power.SLEEP, Power.RESTART, Power.SHUT_DOWN -> {
+                settings.save(); library.save()
+                val cmd = systemPowerCommand(p, HostOs.current)
+                runCatching { ProcessBuilder(cmd).inheritIO().start() }.onFailure { toast("Couldn't ${p.label.lowercase()}: ${it.message}") }
+            }
+        }
+    }
+
     fun shutdown() {
         _session.value?.let { stopSession() }
         settings.save(); library.save()
         controllers.stop()
+    }
+}
+
+/** OS command for sleep / restart / shut down. macOS asks System Events so apps can save; nothing here forces. */
+fun systemPowerCommand(p: AppController.Power, os: HostOs): List<String> = when (os) {
+    HostOs.MAC -> listOf("osascript", "-e", "tell application \"System Events\" to " + when (p) {
+        AppController.Power.SLEEP -> "sleep"; AppController.Power.RESTART -> "restart"; else -> "shut down" })
+    HostOs.LINUX -> listOf("systemctl", when (p) { AppController.Power.SLEEP -> "suspend"; AppController.Power.RESTART -> "reboot"; else -> "poweroff" })
+    HostOs.WINDOWS -> when (p) {
+        AppController.Power.SLEEP -> listOf("rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0")
+        AppController.Power.RESTART -> listOf("shutdown", "/r", "/t", "0")
+        else -> listOf("shutdown", "/s", "/t", "0")
     }
 }
