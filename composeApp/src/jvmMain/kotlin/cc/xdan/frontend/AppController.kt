@@ -143,6 +143,7 @@ class AppController {
         // (Tests set mf.noStartupScan so a saved "set up" state doesn't scan the real machine mid-test.)
         if (settings.value.onboardingComplete && settings.value.rescanOnStartup && System.getProperty("mf.noStartupScan") == null) rescan()
         scope.launch {
+            launch { controllers.lowBattery.collect { c -> toast("${c.typeLabel} battery low · ${c.battery}%") } }
             controllers.connected.collect { info ->
                 toast("${info.typeLabel} connected")
                 if (settings.value.bigScreenOnController && mode.value == UiMode.LIST && session.value == null) {

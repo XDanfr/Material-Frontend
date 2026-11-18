@@ -68,6 +68,20 @@ class ControllerManager {
     private val _connected = MutableSharedFlow<ControllerInfo>(extraBufferCapacity = 4, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     /** Fires when a new pad is plugged in (used for auto Big Screen). */
     val connected: SharedFlow<ControllerInfo> = _connected.asSharedFlow()
+    private val _lowBattery = MutableSharedFlow<ControllerInfo>(extraBufferCapacity = 4, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    /** Fires once when a controller drops to 15% (again only after it's been charged above 25%). */
+    val lowBattery: SharedFlow<ControllerInfo> = _lowBattery.asSharedFlow()
+    private val warnedLow = HashSet<Int>()
+    private var nextBatteryCheck = 0L
+
+    /** Updates a controller's battery and decides whether to warn. Returns the updated info. */
+    internal fun updateBattery(instance: Int, pct: Int?) {
+        val cur = _controllers.value.firstOrNull { it.instanceId == instance } ?: return
+        if (cur.battery != pct) _controllers.value = _controllers.value.map { if (it.instanceId == instance) it.copy(battery = pct) else it }
+        if (pct == null) return
+        if (pct <= 15 && warnedLow.add(instance)) _lowBattery.tryEmit(cur.copy(battery = pct))
+        if (pct > 25) warnedLow.remove(instance)
+    }
 
     @Volatile var nintendoConfirm = false
     /** When true, pads drive the emulated game; only hotkeys produce nav events. */
@@ -117,6 +131,11 @@ class ControllerManager {
                 }
                 SDLGamepad.SDL_UpdateGamepads()
                 val now = System.nanoTime()
+                if (now >= nextBatteryCheck) {
+                    nextBatteryCheck = now + 30_000_000_000L
+                    for ((id, h) in handles) updateBattery(id, MemoryStack.stackPush().use { s ->
+                        val pct = s.mallocInt(1); SDLGamepad.SDL_GetGamepadPowerInfo(h, pct); pct.get(0).takeIf { it >= 0 } })
+                }
                 for ((id, h) in handles) {
                     val state = readState(h)
                     val port = portOf[id] ?: continue
@@ -260,7 +279,7 @@ class ControllerManager {
 
     /** Input for emulated port (keyboard is merged into port 0). */
     /** Registers a controller without SDL (tests). */
-    internal fun attachForTest(instance: Int, port: Int) { portOf[instance] = port }
+    internal fun attachForTest(instance: Int, port: Int, info: ControllerInfo? = null) { portOf[instance] = port; info?.let { _controllers.value = _controllers.value + it } }
 
     /** Player number (0-based) for each connected controller instance. */
     fun playerOf(instance: Int): Int? = portOf[instance]
