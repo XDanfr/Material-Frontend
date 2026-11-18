@@ -5,7 +5,8 @@
   </picture>
 </p>
 
-> **Work in progress.** Things are changing quickly and some features are still rough around the edges.
+> [!NOTE]
+> This is a **work in progress.** Things are changing quickly and some features are still rough around the edges, but bug reports are appreciated.
 
 A game library and emulation frontend for **Windows, macOS and Linux**, designed with Material 3 Expressive and built with Compose Multiplatform. It brings your PC launchers and your emulated systems together in one place, and you can browse it three ways: a desktop library, a controller-first Big Screen mode, or a PS3-inspired XMB.
 
