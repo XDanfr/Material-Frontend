@@ -1,5 +1,7 @@
 package cc.xdan.frontend
 
+import kotlinx.coroutines.flow.drop
+
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.input.key.isAltPressed
 import cc.xdan.frontend.data.HostOs
@@ -47,11 +49,13 @@ fun main(args: Array<String>) {
     val windowIcon = iconPng?.let { BitmapPainter(Image.makeFromEncoded(it).toComposeImageBitmap()) }
 
     application {
-        val state = rememberWindowState(width = 1440.dp, height = 900.dp)
+        // Start in the right placement; the sync below would otherwise read the initial Floating and turn fullscreen off.
+        val state = rememberWindowState(width = 1440.dp, height = 900.dp,
+            placement = if (app.fullscreen.value) WindowPlacement.Fullscreen else WindowPlacement.Floating)
         val fullscreen by app.fullscreen.collectAsState()
         LaunchedEffect(fullscreen) { state.placement = if (fullscreen) WindowPlacement.Fullscreen else WindowPlacement.Floating }
         // Keep in sync when the OS changes it (macOS green button / Globe-F, window manager shortcuts).
-        LaunchedEffect(Unit) { snapshotFlow { state.placement }.collect { app.fullscreen.value = it == WindowPlacement.Fullscreen } }
+        LaunchedEffect(Unit) { snapshotFlow { state.placement }.drop(1).collect { app.fullscreen.value = it == WindowPlacement.Fullscreen } }
         LaunchedEffect(Unit) { app.minimizeRequests.collect { state.isMinimized = it } }
 
         Window(
