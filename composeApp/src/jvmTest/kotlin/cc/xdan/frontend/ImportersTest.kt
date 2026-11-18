@@ -121,4 +121,42 @@ class ImportersTest {
         assertFalse(Launchers.isUri("C:\\Games\\EA\\game.exe"))
         assertFalse(Launchers.isUri("/home/me/game.x86_64"))
     }
+
+    private fun steamInstall(steam: File, vararg games: Pair<String, String>, libraries: List<String> = emptyList()) {
+        File(steam, "steamapps").mkdirs()
+        File(steam, "steamapps/libraryfolders.vdf").writeText(
+            "\"libraryfolders\" {\n" + libraries.mapIndexed { i, p -> "\"$i\" { \"path\" \"${p.replace("\\", "\\\\")}\" }" }.joinToString("\n") + "\n}")
+        games.forEach { (id, name) -> File(steam, "steamapps/appmanifest_$id.acf").writeText("\"AppState\" { \"appid\" \"$id\" \"name\" \"$name\" }") }
+    }
+
+    @Test fun findsSteamInCrossOverBottles() {
+        val bottles = tmp(); val bottle = File(bottles, "Steam").apply { mkdirs() }
+        val steam = File(bottle, "drive_c/Program Files (x86)/Steam")
+        val dLib = tmp()   // a second library on D: (dosdevices/d: → elsewhere)
+        steamInstall(steam, "620" to "Portal 2", "228980" to "Steamworks Common Redistributables", libraries = listOf("C:\\Program Files (x86)\\Steam", "D:\\SteamLibrary"))
+        steamInstall(File(dLib, "SteamLibrary"), "1145360" to "Hades")
+        File(bottle, "dosdevices").mkdirs()
+        java.nio.file.Files.createSymbolicLink(File(bottle, "dosdevices/d:").toPath(), dLib.toPath())
+        val games = cc.xdan.frontend.data.CompatSteam.crossover(bottles, File("/Applications/CrossOver.app/wine")).associateBy { it.title }
+        assertEquals(setOf("Portal 2", "Hades"), games.keys, "tools are skipped, D: library is followed")
+        val hades = games.getValue("Hades")
+        assertEquals("1145360", hades.steamAppId)
+        val cmd = (Launchers.options(hades, cc.xdan.frontend.model.Settings()).single().second as cc.xdan.frontend.emulators.LaunchTarget.External).command
+        assertEquals(listOf("/Applications/CrossOver.app/wine", "--bottle", "Steam", "C:\\Program Files (x86)\\Steam\\steam.exe", "-applaunch", "1145360"), cmd)
+        bottles.deleteRecursively(); dLib.deleteRecursively()
+    }
+
+    @Test fun findsSteamOnParallelsSharedDrives() {
+        val volumes = tmp()
+        val c = File(volumes, "[C] Windows 11").apply { mkdirs() }
+        val d = File(volumes, "[D] Games").apply { mkdirs() }
+        steamInstall(File(c, "Program Files (x86)/Steam"), "570" to "Dota 2", libraries = listOf("D:\\SteamLibrary"))
+        steamInstall(File(d, "SteamLibrary"), "292030" to "The Witcher 3: Wild Hunt")
+        val games = cc.xdan.frontend.data.CompatSteam.parallels(volumes, "/usr/local/bin/prlctl")
+        assertEquals(setOf("Dota 2", "The Witcher 3: Wild Hunt"), games.map { it.title }.toSet())
+        val witcher = games.first { it.title.startsWith("The Witcher") }
+        val cmd = (Launchers.options(witcher, cc.xdan.frontend.model.Settings()).single().second as cc.xdan.frontend.emulators.LaunchTarget.External).command
+        assertEquals(listOf("/usr/local/bin/prlctl", "exec", "Windows 11", "--current-user", "C:\\Program Files (x86)\\Steam\\steam.exe", "-applaunch", "292030"), cmd)
+        volumes.deleteRecursively()
+    }
 }
