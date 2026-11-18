@@ -342,7 +342,7 @@ fun BigScreen() {
                     onMore = { overlays += Overlay.Manage(games.firstOrNull { it.id == o.game.id } ?: o.game) })
                 is Overlay.LaunchWith -> LaunchWithOverlay(o.game, o.focus) { k -> overlays.clear(); app.play(o.game, k) }
                 is Overlay.Menu -> MenuOverlay(menuItems.map { it.first }, o.focus) { i -> menuItems[i].second(); overlays.clear() }
-                is Overlay.Manage -> MenuOverlay(manageItems(o.game).map { if (it == "Remove from library" && o.armedRemove) "Press again to remove" else it }, o.focus) { i ->
+                is Overlay.Manage -> MenuOverlay(manageItems(o.game).map { if (it == "Remove from library" && o.armedRemove) "Press again to remove" else it }, o.focus, title = o.game.title) { i ->
                     overlays[overlays.indexOf(o)] = o.copy(focus = i); manageAction(o.copy(focus = i), app, overlays)
                 }
                 is Overlay.Rename -> RenameOverlay(o.game, onDone = { t -> if (t.isNotBlank()) app.rename(o.game.id, t.trim()); overlays.remove(o) })
@@ -571,8 +571,8 @@ private fun LaunchWithOverlay(g: Game, focus: Int, onPick: (String) -> Unit) {
 }
 
 @Composable
-private fun MenuOverlay(items: List<String>, focus: Int, onPick: (Int) -> Unit) {
-    SideSheet("Menu") { items.forEachIndexed { i, s -> SheetItem(s, i == focus) { onPick(i) } } }
+private fun MenuOverlay(items: List<String>, focus: Int, title: String = "Menu", onPick: (Int) -> Unit) {
+    SideSheet(title) { items.forEachIndexed { i, s -> SheetItem(s, i == focus) { onPick(i) } } }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
