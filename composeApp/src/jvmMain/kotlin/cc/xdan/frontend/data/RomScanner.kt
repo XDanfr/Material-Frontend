@@ -104,6 +104,7 @@ class RomScanner {
         for (f in children) {
             if (f.name.startsWith(".")) continue
             if (f.isDirectory) {
+                if (AddOns.isAddOnFolder(f.name)) continue
                 val asDirGame = if (folderPlatform != null) {
                     folderPlatform.takeIf { p -> p.dirMarkers.any { File(f, it).exists() } }
                 } else {
@@ -121,12 +122,32 @@ class RomScanner {
                 folderPlatform != null -> folderPlatform.takeIf { ext in it.extensions }
                 else -> Platforms.uniqueExtensions[ext]
             }
+            if (platform != null && AddOns.isAddOn(f.name)) continue
             if (platform == null && ext !in quietExt) emit(f, null) else if (platform != null) emit(f, platform)
         }
     }
 
     private val ignoredExt = setOf("txt", "nfo", "jpg", "jpeg", "png", "srm", "sav", "state", "xml", "dat", "db", "ini", "cfg", "md", "pdf", "sfv", "ds_store")
     private val quietExt = setOf("bin", "img", "sub", "ccd", "raw", "wav", "mp3", "ogg", "lnk")
+}
+
+/** Updates, patches and DLC sit next to games but aren't games themselves (Switch especially). */
+object AddOns {
+    private val titleId = Regex("[\\[(]([0-9A-Fa-f]{16})[\\])]")
+    private val tag = Regex("[\\[(](?:[^\\])]*\\b)?(update|upd|dlc|patch|add-?on|aoc)(?:\\b[^\\])]*)?[\\])]", RegexOption.IGNORE_CASE)
+    private val version = Regex("[\\[(]v(\\d+)[\\])]", RegexOption.IGNORE_CASE)
+    private val folders = setOf("update", "updates", "dlc", "dlcs", "patch", "patches", "addons", "add-ons", "aoc")
+
+    fun isAddOnFolder(name: String) = name.lowercase() in folders
+
+    fun isAddOn(fileName: String): Boolean {
+        // Switch title IDs: base games end in 000, updates in 800, DLC in anything else.
+        titleId.find(fileName)?.let { if (!it.groupValues[1].endsWith("000")) return true }
+        if (tag.containsMatchIn(fileName)) return true
+        // Switch update dumps carry their version as [v65536] and up; base games are [v0].
+        version.find(fileName)?.groupValues?.get(1)?.toLongOrNull()?.let { if (it >= 65536) return true }
+        return false
+    }
 }
 
 object Hashing {
