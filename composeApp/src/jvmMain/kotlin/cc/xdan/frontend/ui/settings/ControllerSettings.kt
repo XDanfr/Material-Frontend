@@ -75,7 +75,7 @@ fun activateSetting(item: SettingItem, nav: Nav, armed: String?, setArmed: (Stri
  * second press. Desktop-only editors open in the Library view.
  */
 @Composable
-fun ControllerSettings(mode: UiMode, active: Boolean, modifier: Modifier = Modifier) {
+fun ControllerSettings(mode: UiMode, active: Boolean, modifier: Modifier = Modifier, onExitTop: (() -> Unit)? = null) {
     val app = LocalApp.current
     val groups = settingsGroups(mode)
     val rows = groups.flatMap { g -> g.items.mapIndexed { i, it -> CtlRow(it, g.section, i == 0) } }
@@ -89,7 +89,7 @@ fun ControllerSettings(mode: UiMode, active: Boolean, modifier: Modifier = Modif
         app.controllers.events.collect { e ->
             val r = latestRows
             when (e.nav) {
-                Nav.UP -> { focus = (focus - 1).coerceAtLeast(0); armed = null }
+                Nav.UP -> { if (focus == 0 && onExitTop != null) onExitTop() else focus = (focus - 1).coerceAtLeast(0); armed = null }
                 Nav.DOWN -> { focus = (focus + 1).coerceAtMost(r.lastIndex.coerceAtLeast(0)); armed = null }
                 Nav.CONFIRM, Nav.LEFT, Nav.RIGHT -> r.getOrNull(focus)?.let { row ->
                     activateSetting(row.item, e.nav, armed, { armed = it }, { app.editInLibraryView(it) }, row.section)

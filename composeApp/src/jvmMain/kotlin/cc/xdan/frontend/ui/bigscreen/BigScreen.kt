@@ -1,5 +1,7 @@
 package cc.xdan.frontend.ui.bigscreen
 
+import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.material3.carousel.HorizontalCenteredHeroCarousel
 import cc.xdan.frontend.ui.settings.ControllerSettings
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.expandHorizontally
@@ -125,6 +127,9 @@ private sealed interface Overlay {
     data class Details(val game: Game, val focus: Int = 0) : Overlay
     data class LaunchWith(val game: Game, val focus: Int = 0) : Overlay
     data class Menu(val focus: Int = 0) : Overlay
+    /** Hide / rename / remove for one game. */
+    data class Manage(val game: Game, val focus: Int = 0, val armedRemove: Boolean = false) : Overlay
+    data class Rename(val game: Game) : Overlay
     data object Search : Overlay
 }
 
@@ -151,22 +156,30 @@ fun BigScreen() {
 
     val shelves = remember(games) { buildShelves(games) }
     var tab by remember { mutableStateOf(Tab.HOME) }
-    var row by remember { mutableIntStateOf(0) }
+    // Home: row -1 is the spotlight carousel; Up from the top of any tab focuses the tab bar.
+    val featured = remember(games) { featuredGames(games) }
+    var row by remember { mutableIntStateOf(-1) }
+    var spotIdx by remember { mutableIntStateOf(0) }
+    var barFocus by remember { mutableStateOf(false) }
+    if (row == -1 && featured.isEmpty()) row = 0
     val cols = remember { mutableStateMapOf<Int, Int>() }
     // Library tab state
-    val platforms = remember(games) { listOf<String?>(null) + games.filter { !it.hidden }.map { it.platformId }.distinct().sortedBy { Platforms.all.indexOfFirst { p -> p.id == it } } }
+    val platforms = remember(games) {
+        listOf<String?>(null) + games.filter { !it.hidden }.map { it.platformId }.distinct().sortedBy { Platforms.all.indexOfFirst { p -> p.id == it } } +
+            listOfNotNull(HIDDEN.takeIf { games.any { it.hidden } })
+    }
     var platformIdx by remember { mutableIntStateOf(0) }
     var gridIdx by remember { mutableIntStateOf(0) }
     var gridCols by remember { mutableIntStateOf(6) }
     val libGames = remember(games, platformIdx) {
         val pid = platforms.getOrNull(platformIdx)
-        games.filter { !it.hidden && (pid == null || it.platformId == pid) }.sortedBy { it.sortKey }
+        (if (pid == HIDDEN) games.filter { it.hidden } else games.filter { !it.hidden && (pid == null || it.platformId == pid) }).sortedBy { it.sortKey }
     }
     val overlays = remember { mutableStateListOf<Overlay>() }
     var searchResultsFocus by remember { mutableStateOf<Game?>(null) }
 
     val focused: Game? = when (tab) {
-        Tab.HOME -> shelves.getOrNull(row)?.games?.getOrNull(cols[row] ?: 0)
+        Tab.HOME -> if (row == -1) featured.getOrNull(spotIdx) else shelves.getOrNull(row)?.games?.getOrNull(cols[row] ?: 0)
         Tab.LIBRARY -> libGames.getOrNull(gridIdx)
         Tab.SETTINGS -> null
     }
@@ -195,7 +208,7 @@ fun BigScreen() {
             if (e.nav == Nav.CONFIRM && top != Overlay.Search) { pressPulse++; delay(PRESS_DELAY_MS) }
             when (top) {
                 is Overlay.Details -> {
-                    val actions = 3
+                    val actions = 4
                     when (e.nav) {
                         Nav.LEFT -> overlays[overlays.lastIndex] = top.copy(focus = (top.focus - 1).coerceAtLeast(0))
                         Nav.RIGHT -> overlays[overlays.lastIndex] = top.copy(focus = (top.focus + 1).coerceAtMost(actions - 1))
@@ -203,6 +216,7 @@ fun BigScreen() {
                             0 -> { overlays.clear(); app.play(top.game) }
                             1 -> { app.toggleFavorite(top.game.id); overlays[overlays.lastIndex] = top.copy(game = top.game.copy(favorite = !top.game.favorite)) }
                             2 -> overlays += Overlay.LaunchWith(top.game)
+                            3 -> overlays += Overlay.Manage(games.firstOrNull { it.id == top.game.id } ?: top.game)
                         }
                         Nav.ALT -> { app.toggleFavorite(top.game.id); overlays[overlays.lastIndex] = top.copy(game = top.game.copy(favorite = !top.game.favorite)) }
                         Nav.BACK -> overlays.removeLast()
@@ -226,8 +240,25 @@ fun BigScreen() {
                     Nav.BACK, Nav.MENU, Nav.GUIDE -> overlays.removeLast()
                     else -> {}
                 }
-                Overlay.Search -> { /* handled by SearchOverlay */ }
-                null -> when (e.nav) {
+                is Overlay.Manage -> {
+                    val n = manageItems(top.game).size
+                    when (e.nav) {
+                        Nav.UP -> overlays[overlays.lastIndex] = top.copy(focus = (top.focus - 1).coerceAtLeast(0), armedRemove = false)
+                        Nav.DOWN -> overlays[overlays.lastIndex] = top.copy(focus = (top.focus + 1).coerceAtMost(n - 1), armedRemove = false)
+                        Nav.CONFIRM -> manageAction(top, app, overlays)
+                        Nav.BACK, Nav.MENU -> overlays.removeLast()
+                        else -> {}
+                    }
+                }
+                is Overlay.Rename, Overlay.Search -> { /* handled by their own overlay */ }
+                null -> if (barFocus) when (e.nav) {
+                    Nav.LEFT, Nav.PREV_TAB -> tab = Tab.entries[(tab.ordinal + Tab.entries.size - 1) % Tab.entries.size]
+                    Nav.RIGHT, Nav.NEXT_TAB -> tab = Tab.entries[(tab.ordinal + 1) % Tab.entries.size]
+                    Nav.DOWN, Nav.CONFIRM, Nav.BACK -> barFocus = false
+                    Nav.MENU, Nav.GUIDE -> overlays += Overlay.Menu()
+                    Nav.SEARCH -> overlays += Overlay.Search
+                    else -> {}
+                } else when (e.nav) {
                     Nav.PREV_TAB -> tab = Tab.entries[(tab.ordinal + Tab.entries.size - 1) % Tab.entries.size]
                     Nav.NEXT_TAB -> tab = Tab.entries[(tab.ordinal + 1) % Tab.entries.size]
                     Nav.MENU, Nav.GUIDE -> overlays += Overlay.Menu()
@@ -236,8 +267,15 @@ fun BigScreen() {
                     Nav.CONFIRM -> if (tab != Tab.SETTINGS) currentFocused?.let { overlays += Overlay.Details(it) }
                     Nav.ALT -> if (tab != Tab.SETTINGS) currentFocused?.let { app.toggleFavorite(it.id) }
                     else -> if (tab == Tab.SETTINGS) { /* ControllerSettings handles its own navigation */ } else if (tab == Tab.HOME) {
-                        when (e.nav) {
-                            Nav.UP -> row = (row - 1).coerceAtLeast(0)
+                        val top0 = if (featured.isEmpty()) 0 else -1
+                        if (row == -1) when (e.nav) {
+                            Nav.UP -> barFocus = true
+                            Nav.DOWN -> if (shelves.isNotEmpty()) row = 0
+                            Nav.LEFT -> spotIdx = (spotIdx - 1).coerceAtLeast(0)
+                            Nav.RIGHT -> spotIdx = (spotIdx + 1).coerceAtMost(featured.lastIndex)
+                            else -> {}
+                        } else when (e.nav) {
+                            Nav.UP -> if (row == top0) barFocus = true else row = (row - 1).coerceAtLeast(top0)
                             Nav.DOWN -> row = (row + 1).coerceAtMost((shelves.size - 1).coerceAtLeast(0))
                             Nav.LEFT -> cols[row] = ((cols[row] ?: 0) - 1).coerceAtLeast(0)
                             Nav.RIGHT -> cols[row] = ((cols[row] ?: 0) + 1).coerceAtMost((shelves.getOrNull(row)?.games?.size ?: 1) - 1)
@@ -249,7 +287,7 @@ fun BigScreen() {
                         when (e.nav) {
                             Nav.LEFT -> gridIdx = (gridIdx - 1).coerceAtLeast(0)
                             Nav.RIGHT -> gridIdx = (gridIdx + 1).coerceAtMost(libGames.lastIndex.coerceAtLeast(0))
-                            Nav.UP -> gridIdx = (gridIdx - gridCols).coerceAtLeast(0)
+                            Nav.UP -> if (gridIdx < gridCols) barFocus = true else gridIdx = (gridIdx - gridCols).coerceAtLeast(0)
                             Nav.DOWN -> gridIdx = (gridIdx + gridCols).coerceAtMost(libGames.lastIndex.coerceAtLeast(0))
                             Nav.PREV_PAGE -> { platformIdx = (platformIdx - 1 + platforms.size) % platforms.size; gridIdx = 0 }
                             Nav.NEXT_PAGE -> { platformIdx = (platformIdx + 1) % platforms.size; gridIdx = 0 }
@@ -265,15 +303,18 @@ fun BigScreen() {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Backdrop(focused)
         Column(Modifier.fillMaxSize()) {
-            TopBar(tab, family) { tab = it }
+            TopBar(tab, family, barFocus) { tab = it; barFocus = false }
             val motion = MaterialTheme.motionScheme
             AnimatedContent(tab, Modifier.weight(1f), transitionSpec = {
                 (fadeIn(motion.defaultEffectsSpec()) + slideInHorizontally(motion.defaultSpatialSpec()) { it / 10 * (if (targetState > initialState) 1 else -1) })
                     .togetherWith(fadeOut(motion.fastEffectsSpec()))
             }) { t ->
                 when (t) {
-                    Tab.HOME -> HomeTab(shelves, row, cols, focused, onClick = { r, c -> if (row == r && (cols[r] ?: 0) == c) shelves[r].games.getOrNull(c)?.let { overlays += Overlay.Details(it) } else { row = r; cols[r] = c } })
-                    Tab.SETTINGS -> ControllerSettings(UiMode.BIGSCREEN, active = overlays.isEmpty(), modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp))
+                    Tab.HOME -> HomeTab(shelves, row, cols, focused, featured, spotIdx, !barFocus,
+                        onSpot = { i -> if (row == -1 && spotIdx == i) overlays += Overlay.Details(featured[i]) else { row = -1; spotIdx = i } },
+                        onClick = { r, c -> if (row == r && (cols[r] ?: 0) == c) shelves[r].games.getOrNull(c)?.let { overlays += Overlay.Details(it) } else { row = r; cols[r] = c } })
+                    Tab.SETTINGS -> ControllerSettings(UiMode.BIGSCREEN, active = overlays.isEmpty() && !barFocus, modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp),
+                        onExitTop = { barFocus = true })
                     Tab.LIBRARY -> LibraryTab(platforms, platformIdx, libGames, gridIdx, onCols = { gridCols = it }, onClick = { i -> if (gridIdx == i) overlays += Overlay.Details(libGames[i]) else gridIdx = i })
                 }
             }
@@ -281,9 +322,12 @@ fun BigScreen() {
         if (settings.bigScreenHints) HintBar(
             when (overlays.lastOrNull()) {
                 is Overlay.Details -> listOf(Pad.SOUTH to "Select", Pad.WEST to "Favourite", Pad.EAST to "Back")
+                is Overlay.Manage -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Back")
+                is Overlay.Rename -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Save", Pad.EAST to "Cancel")
                 is Overlay.Menu, is Overlay.LaunchWith -> listOf(Pad.SOUTH to "Select", Pad.EAST to "Close")
                 Overlay.Search -> listOf(Pad.SOUTH to "Type", Pad.WEST to "Delete", Pad.START to "Open result", Pad.EAST to "Close")
-                null -> if (tab == Tab.SETTINGS) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Value", Pad.LB to "Tabs", Pad.EAST to "Home")
+                null -> if (barFocus) listOf(Pad.LEFT to "Switch tab", Pad.DOWN to "Back to content")
+                        else if (tab == Tab.SETTINGS) listOf(Pad.SOUTH to "Change", Pad.LEFT to "Value", Pad.LB to "Tabs", Pad.EAST to "Home")
                         else listOf(Pad.SOUTH to "Details", Pad.WEST to "Favourite", Pad.NORTH to "Search", Pad.LB to "Tabs", Pad.START to "Menu")
             }.map { (p, l) -> (if (settings.nintendoConfirm && p == Pad.SOUTH) Pad.EAST else if (settings.nintendoConfirm && p == Pad.EAST) Pad.SOUTH else p) to l },
             family, Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
@@ -294,9 +338,14 @@ fun BigScreen() {
             when (o) {
                 is Overlay.Details -> DetailsOverlay(games.firstOrNull { it.id == o.game.id } ?: o.game, o.focus,
                     onAction = { i -> overlays[overlays.indexOf(o)] = o.copy(focus = i) }, onBack = { overlays.remove(o) },
-                    onPlay = { overlays.clear(); app.play(o.game) }, onLaunchWith = { overlays += Overlay.LaunchWith(o.game) })
+                    onPlay = { overlays.clear(); app.play(o.game) }, onLaunchWith = { overlays += Overlay.LaunchWith(o.game) },
+                    onMore = { overlays += Overlay.Manage(games.firstOrNull { it.id == o.game.id } ?: o.game) })
                 is Overlay.LaunchWith -> LaunchWithOverlay(o.game, o.focus) { k -> overlays.clear(); app.play(o.game, k) }
                 is Overlay.Menu -> MenuOverlay(menuItems.map { it.first }, o.focus) { i -> menuItems[i].second(); overlays.clear() }
+                is Overlay.Manage -> MenuOverlay(manageItems(o.game).map { if (it == "Remove from library" && o.armedRemove) "Press again to remove" else it }, o.focus) { i ->
+                    overlays[overlays.indexOf(o)] = o.copy(focus = i); manageAction(o.copy(focus = i), app, overlays)
+                }
+                is Overlay.Rename -> RenameOverlay(o.game, onDone = { t -> if (t.isNotBlank()) app.rename(o.game.id, t.trim()); overlays.remove(o) })
                 Overlay.Search -> SearchOverlay(games.filter { !it.hidden }, onClose = { overlays.remove(Overlay.Search) }) { g -> overlays.remove(Overlay.Search); overlays += Overlay.Details(g) }
             }
         }
@@ -318,7 +367,7 @@ private fun Backdrop(game: Game?) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun TopBar(tab: Tab, family: ControllerFamily, onTab: (Tab) -> Unit) {
+private fun TopBar(tab: Tab, family: ControllerFamily, barFocus: Boolean, onTab: (Tab) -> Unit) {
     val app = LocalApp.current
     val pads by app.controllers.controllers.collectAsState()
     val time by produceState(LocalTime.now()) { while (true) { value = LocalTime.now(); delay(1000) } }
@@ -329,7 +378,7 @@ private fun TopBar(tab: Tab, family: ControllerFamily, onTab: (Tab) -> Unit) {
             Tab.entries.forEach { t ->
                 val sel = t == tab
                 val bg by animateFloatAsState(if (sel) 1f else 0f, MaterialTheme.motionScheme.fastEffectsSpec())
-                Text(t.label, Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = bg)).clickable { onTab(t) }
+                Text(t.label, Modifier.pressBounce(LocalPressPulse.current, sel && barFocus).focusEmphasis(sel && barFocus, 50.dp, 50.dp, 1.06f).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = bg)).clickable { onTab(t) }
                     .padding(horizontal = 20.dp, vertical = 10.dp),
                     // Selected tab widens and rounds; others sit condensed.
                     style = MaterialTheme.typography.titleLarge.flex { copy(wdth = 92f) }.reactive(sel) { copy(wght = 760f, wdth = 114f, rond = 100f) },
@@ -352,7 +401,8 @@ private fun TopBar(tab: Tab, family: ControllerFamily, onTab: (Tab) -> Unit) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused: Game?, onClick: (Int, Int) -> Unit) {
+private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused: Game?, featured: List<Game>, spotIdx: Int, contentFocus: Boolean,
+                    onSpot: (Int) -> Unit, onClick: (Int, Int) -> Unit) {
     if (shelves.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -366,19 +416,21 @@ private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused
         // Hero info for the focused game
         Box(Modifier.fillMaxWidth().weight(0.42f).padding(horizontal = 56.dp), contentAlignment = Alignment.BottomStart) {
             val motion = MaterialTheme.motionScheme
-            AnimatedContent(focused, transitionSpec = {
+            // The top area is the spotlight while it has focus, and describes the focused game otherwise.
+            AnimatedContent(if (row == -1) null else focused, transitionSpec = {
                 (fadeIn(motion.defaultEffectsSpec()) + slideInVertically(motion.defaultSpatialSpec()) { it / 8 })
                     .togetherWith(fadeOut(motion.fastEffectsSpec()))
-            }, contentKey = { it?.id }) { g ->
+            }, contentKey = { it?.id ?: "spotlight" }) { g ->
                 if (g != null) HeroInfo(g)
+                else if (featured.isNotEmpty()) Spotlight(featured, spotIdx, row == -1 && contentFocus, onSpot)
             }
         }
         val listState = rememberLazyListState()
-        LaunchedEffect(row) { listState.animateScrollToItem(row) }
+        LaunchedEffect(row) { listState.animateScrollToItem(row.coerceAtLeast(0)) }
         LazyColumn(Modifier.fillMaxWidth().weight(0.58f), state = listState, contentPadding = PaddingValues(bottom = 120.dp), userScrollEnabled = true) {
             itemsIndexed(shelves) { r, shelf ->
                 val active = r == row
-                Column(Modifier.padding(vertical = 8.dp).alpha(if (active) 1f else 0.7f)) {
+                Column(Modifier.padding(vertical = 8.dp).alpha(if (active || row == -1) 1f else 0.7f)) {
                     Text(shelf.title, Modifier.padding(start = 56.dp, bottom = 12.dp),
                         style = MaterialTheme.typography.titleLarge.flex { copy(wdth = 90f, wght = 430f) }.reactive(active) { copy(wght = 720f, wdth = 108f, rond = 100f) })
                     val rowState = rememberLazyListState()
@@ -427,7 +479,7 @@ private fun LibraryTab(platforms: List<String?>, platformIdx: Int, games: List<G
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 16.dp)) {
             ButtonGlyph(Pad.LT, family)
-            Text(platforms[platformIdx]?.let { Platforms.get(it).name } ?: "All systems", style = MaterialTheme.typography.headlineMediumEmphasized)
+            Text(platforms[platformIdx]?.let { if (it == HIDDEN) "Hidden games" else Platforms.get(it).name } ?: "All systems", style = MaterialTheme.typography.headlineMediumEmphasized)
             ButtonGlyph(Pad.RT, family)
             Text("${games.size} games", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -448,7 +500,7 @@ private fun LibraryTab(platforms: List<String?>, platformIdx: Int, games: List<G
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack: () -> Unit, onPlay: () -> Unit, onLaunchWith: () -> Unit) {
+private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack: () -> Unit, onPlay: () -> Unit, onLaunchWith: () -> Unit, onMore: () -> Unit) {
     val app = LocalApp.current
     val settings by app.settings.state.collectAsState()
     val hero by rememberImage(g.assets.hero ?: g.assets.screenshot, 1920)
@@ -470,6 +522,7 @@ private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack:
                         BigButton("Play", focus == 0, primary = true) { onAction(0); onPlay() }
                         BigButton("Favourite", focus == 1, suffix = "d", showSuffix = g.favorite) { onAction(1); app.toggleFavorite(g.id) }
                         BigButton("Launch with…", focus == 2) { onAction(2); onLaunchWith() }
+                        BigButton("More…", focus == 3) { onAction(3); onMore() }
                     }
                     Text(launchLabel(target), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
                     g.meta.description?.let { Text(it, style = MaterialTheme.typography.bodyLarge, maxLines = 5, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 900.dp)) }
@@ -603,6 +656,114 @@ private fun SearchOverlay(games: List<Game>, onClose: () -> Unit, onOpen: (Game)
                             Column {
                                 Text(g.title, style = if (i == 0) MaterialTheme.typography.titleLargeEmphasized else MaterialTheme.typography.titleMedium)
                                 Text(Platforms.get(g.platformId).name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+private const val HIDDEN = "__hidden"
+
+/** Spotlight picks: what you're playing, favourites, then new arrivals — preferring games with wide art. */
+private fun featuredGames(games: List<Game>): List<Game> {
+    val visible = games.filter { !it.hidden }
+    val ordered = (visible.filter { it.lastPlayed != null }.sortedByDescending { it.lastPlayed } +
+        visible.filter { it.favorite } + visible.sortedByDescending { it.addedAt }).distinctBy { it.id }
+    val wide = ordered.filter { it.assets.hero != null || it.assets.screenshot != null }
+    return (wide.ifEmpty { ordered }).take(8)
+}
+
+private fun manageItems(g: Game) = listOf(if (g.hidden) "Show in library" else "Hide from library", "Rename", "Remove from library")
+
+private fun manageAction(o: Overlay.Manage, app: cc.xdan.frontend.AppController, overlays: MutableList<Overlay>) {
+    when (o.focus) {
+        0 -> { app.setHidden(setOf(o.game.id), !o.game.hidden); overlays.clear() }
+        1 -> overlays += Overlay.Rename(o.game)
+        2 -> if (o.armedRemove) { app.removeGames(setOf(o.game.id)); overlays.clear() }
+             else overlays.indexOfFirst { it is Overlay.Manage }.takeIf { it >= 0 }?.let { overlays[it] = o.copy(armedRemove = true) }
+    }
+}
+
+/**
+ * Featured games in an M3 center-aligned hero carousel: one large item with smaller previews either
+ * side (28dp corners, 8dp spacing per the spec). The controller moves it one item at a time.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (Int) -> Unit) {
+    val state = rememberCarouselState(initialItem = index) { games.size }
+    LaunchedEffect(index) { state.animateScrollToItem(index) }
+    HorizontalCenteredHeroCarousel(state, Modifier.fillMaxSize().padding(top = 8.dp, bottom = 16.dp), itemSpacing = 8.dp) { i ->
+        val g = games[i]
+        val art by rememberImage(g.assets.hero ?: g.assets.screenshot ?: g.assets.cover, 1600)
+        val logo by rememberImage(g.assets.logo, 600)
+        val current = i == index
+        val shape = RoundedCornerShape(28.dp)
+        Box(Modifier.fillMaxSize().maskClip(shape).then(if (current && focused) Modifier.maskBorder(androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.primary), shape) else Modifier)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest).clickable { onPick(i) }) {
+            art?.let { Image(it, g.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
+            Column(Modifier.align(Alignment.BottomStart).padding(28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                val l = logo
+                if (l != null) Image(l, g.title, Modifier.heightIn(max = 96.dp).widthIn(max = 380.dp), contentScale = ContentScale.Fit, alignment = Alignment.BottomStart)
+                else Text(g.title, style = MaterialTheme.typography.headlineMediumEmphasized, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(listOfNotNull(Platforms.get(g.platformId).name, g.lastPlayed?.let { "Played ${formatAgo(it).lowercase()}" } ?: if (g.favorite) "Favourite" else "New")
+                    .joinToString("  ·  "), style = MaterialTheme.typography.titleSmall, color = Color.White.copy(alpha = 0.85f), maxLines = 1)
+            }
+        }
+    }
+}
+
+/** Rename with an on-screen keyboard (aA switches case). */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RenameOverlay(g: Game, onDone: (String) -> Unit) {
+    val app = LocalApp.current
+    var upper by remember { mutableStateOf(false) }
+    val letters = "abcdefghijklmnopqrstuvwxyz0123456789".map { it.toString() }
+    val keys = (letters.map { if (upper) it.uppercase() else it } + listOf(":", "-", "'", "&", "aA", "SPACE", "⌫", "SAVE")).chunked(10)
+    var text by remember { mutableStateOf(g.title) }
+    var kr by remember { mutableIntStateOf(0) }
+    var kc by remember { mutableIntStateOf(0) }
+    var keyPulse by remember { mutableIntStateOf(0) }
+    val latestKeys by rememberUpdatedState(keys)
+    fun press(k: String) {
+        keyPulse++
+        when (k) { "aA" -> upper = !upper; "SPACE" -> text += " "; "⌫" -> text = text.dropLast(1); "SAVE" -> onDone(text); else -> text += k }
+    }
+    LaunchedEffect(Unit) {
+        app.controllers.events.collect { e ->
+            val ks = latestKeys
+            when (e.nav) {
+                Nav.UP -> kr = (kr - 1).coerceAtLeast(0)
+                Nav.DOWN -> { kr = (kr + 1).coerceAtMost(ks.lastIndex); kc = kc.coerceAtMost(ks[kr].lastIndex) }
+                Nav.LEFT -> kc = (kc - 1).coerceAtLeast(0)
+                Nav.RIGHT -> kc = (kc + 1).coerceAtMost(ks[kr].lastIndex)
+                Nav.CONFIRM -> press(ks[kr][kc.coerceAtMost(ks[kr].lastIndex)])
+                Nav.ALT -> text = text.dropLast(1)
+                Nav.MENU -> onDone(text)
+                Nav.BACK -> onDone("")
+                else -> {}
+            }
+        }
+    }
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f)).padding(64.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            Text("Rename", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text + "▏", style = MaterialTheme.typography.displaySmallEmphasized, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                keys.forEachIndexed { r, rowKeys ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowKeys.forEachIndexed { c, k ->
+                            val f = r == kr && c == kc
+                            Box(Modifier.size(if (k.length > 2) 112.dp else 52.dp, 52.dp).pressBounce(keyPulse, f, depth = 0.85f).focusEmphasis(f, 26.dp, 14.dp, 1.1f)
+                                .background(if (f) MaterialTheme.colorScheme.primaryContainer else if (k == "SAVE") MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .clickable { kr = r; kc = c; press(k) }, contentAlignment = Alignment.Center) {
+                                Text(k, style = MaterialTheme.typography.titleMedium.reactive(f) { copy(wght = 860f, wdth = 114f, rond = 100f) })
                             }
                         }
                     }

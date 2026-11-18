@@ -146,6 +146,8 @@ data class Settings(
     val knownLaunchers: Set<String>? = null,
     /** Found emulators the user said no to ("emu:<path>"). */
     val dismissedDiscoveries: Set<String> = emptySet(),
+    /** Games removed from the library (rescans skip them). */
+    val removedGames: Set<String> = emptySet(),
     /** Read existing ES-DE / EmulationStation gamelist.xml and Pegasus metadata files. */
     val importGamelists: Boolean = true,
     val emulators: List<EmulatorConfig> = emptyList(),
