@@ -200,6 +200,10 @@ fun BigScreen() {
     }
 
     val currentFocused by rememberUpdatedState(focused)
+    val libNow by rememberUpdatedState(libGames)
+    val shelvesNow by rememberUpdatedState(shelves)
+    val featuredNow by rememberUpdatedState(featured)
+    val platformsNow by rememberUpdatedState(platforms)
     var pressPulse by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         app.controllers.events.collect { e ->
@@ -267,30 +271,30 @@ fun BigScreen() {
                     Nav.CONFIRM -> if (tab != Tab.SETTINGS) currentFocused?.let { overlays += Overlay.Details(it) }
                     Nav.ALT -> if (tab != Tab.SETTINGS) currentFocused?.let { app.toggleFavorite(it.id) }
                     else -> if (tab == Tab.SETTINGS) { /* ControllerSettings handles its own navigation */ } else if (tab == Tab.HOME) {
-                        val top0 = if (featured.isEmpty()) 0 else -1
+                        val top0 = if (featuredNow.isEmpty()) 0 else -1
                         if (row == -1) when (e.nav) {
                             Nav.UP -> barFocus = true
-                            Nav.DOWN -> if (shelves.isNotEmpty()) row = 0
+                            Nav.DOWN -> if (shelvesNow.isNotEmpty()) row = 0
                             Nav.LEFT -> spotIdx = (spotIdx - 1).coerceAtLeast(0)
-                            Nav.RIGHT -> spotIdx = (spotIdx + 1).coerceAtMost(featured.lastIndex)
+                            Nav.RIGHT -> spotIdx = (spotIdx + 1).coerceAtMost(featuredNow.lastIndex)
                             else -> {}
                         } else when (e.nav) {
                             Nav.UP -> if (row == top0) barFocus = true else row = (row - 1).coerceAtLeast(top0)
-                            Nav.DOWN -> row = (row + 1).coerceAtMost((shelves.size - 1).coerceAtLeast(0))
+                            Nav.DOWN -> row = (row + 1).coerceAtMost((shelvesNow.size - 1).coerceAtLeast(0))
                             Nav.LEFT -> cols[row] = ((cols[row] ?: 0) - 1).coerceAtLeast(0)
-                            Nav.RIGHT -> cols[row] = ((cols[row] ?: 0) + 1).coerceAtMost((shelves.getOrNull(row)?.games?.size ?: 1) - 1)
+                            Nav.RIGHT -> cols[row] = ((cols[row] ?: 0) + 1).coerceAtMost((shelvesNow.getOrNull(row)?.games?.size ?: 1) - 1)
                             Nav.PREV_PAGE -> cols[row] = 0
-                            Nav.NEXT_PAGE -> cols[row] = (shelves.getOrNull(row)?.games?.size ?: 1) - 1
+                            Nav.NEXT_PAGE -> cols[row] = (shelvesNow.getOrNull(row)?.games?.size ?: 1) - 1
                             else -> {}
                         }
                     } else {
                         when (e.nav) {
                             Nav.LEFT -> gridIdx = (gridIdx - 1).coerceAtLeast(0)
-                            Nav.RIGHT -> gridIdx = (gridIdx + 1).coerceAtMost(libGames.lastIndex.coerceAtLeast(0))
+                            Nav.RIGHT -> gridIdx = (gridIdx + 1).coerceAtMost(libNow.lastIndex.coerceAtLeast(0))
                             Nav.UP -> if (gridIdx < gridCols) barFocus = true else gridIdx = (gridIdx - gridCols).coerceAtLeast(0)
-                            Nav.DOWN -> gridIdx = (gridIdx + gridCols).coerceAtMost(libGames.lastIndex.coerceAtLeast(0))
-                            Nav.PREV_PAGE -> { platformIdx = (platformIdx - 1 + platforms.size) % platforms.size; gridIdx = 0 }
-                            Nav.NEXT_PAGE -> { platformIdx = (platformIdx + 1) % platforms.size; gridIdx = 0 }
+                            Nav.DOWN -> gridIdx = (gridIdx + gridCols).coerceAtMost(libNow.lastIndex.coerceAtLeast(0))
+                            Nav.PREV_PAGE -> { platformIdx = (platformIdx - 1 + platformsNow.size) % platformsNow.size; gridIdx = 0 }
+                            Nav.NEXT_PAGE -> { platformIdx = (platformIdx + 1) % platformsNow.size; gridIdx = 0 }
                             else -> {}
                         }
                     }
