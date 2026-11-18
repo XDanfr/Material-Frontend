@@ -32,7 +32,9 @@ class SetupKeyboardTest {
         pump(100); shot("setup-key-1-after-100ms")
         pump(700); shot("setup-key-2-after-800ms")
         handleKey(app, KeyEvent(Key.Enter, KeyEventType.KeyDown)); handleKey(app, KeyEvent(Key.Enter, KeyEventType.KeyUp))
-        pump(500)
+        // The press bounce waits in real time before acting: keep rendering until it lands (or 3 s pass).
+        val deadline = System.currentTimeMillis() + 3000
+        while (app.settings.value.usage == null && System.currentTimeMillis() < deadline) { pump(16); Thread.sleep(10) }
         kotlin.test.assertEquals(cc.xdan.frontend.model.Usage.EMULATION, app.settings.value.usage, "Right then Enter should choose Emulation")
         scene.close()
         app.shutdown()
