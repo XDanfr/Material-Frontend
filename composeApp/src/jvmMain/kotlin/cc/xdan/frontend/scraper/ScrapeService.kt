@@ -59,9 +59,18 @@ class ScrapeService(
         }
     }
 
+    /** SteamGridDB or IGDB set up — the providers that search by title (so a rename can find better art). */
+    fun titleSearchConfigured(): Boolean = listOf("steamgriddb", "igdb").any { providers[it]?.configured(settings.value.scraper) == true }
+
+    /** After a rename: look the game up again under its new title and replace its artwork (keeping old art where nothing new is found). */
+    fun refetch(game: Game) {
+        if (!titleSearchConfigured()) return
+        scope.launch(Dispatchers.IO) { runCatching { scrapeOne(game, replace = true) }.onFailure { System.err.println("Refetch ${game.title}: ${it.message}") } }
+    }
+
     fun cancel() { job?.cancel(); _progress.value = ScrapeProgress() }
 
-    private suspend fun scrapeOne(game: Game) {
+    private suspend fun scrapeOne(game: Game, replace: Boolean = false) {
         val s = settings.value.scraper
         val order = (listOf("steam") + s.providerOrder + providers.keys).distinct()
         var result = ScrapeResult()
@@ -72,7 +81,13 @@ class ScrapeService(
             result = result.merge(r)
             if (result.complete) break
         }
-        val assets = GameAssets(
+        val assets = if (replace) GameAssets(
+            cover = downloader.fetch(result.cover, game, "cover", fresh = true) ?: game.assets.cover,
+            hero = downloader.fetch(result.hero, game, "hero", fresh = true) ?: game.assets.hero,
+            logo = downloader.fetch(result.logo, game, "logo", fresh = true) ?: game.assets.logo,
+            screenshot = downloader.fetch(result.screenshot, game, "screenshot", fresh = true) ?: game.assets.screenshot,
+            icon = game.assets.icon,
+        ) else GameAssets(
             cover = game.assets.cover ?: downloader.fetch(result.cover, game, "cover"),
             hero = game.assets.hero ?: downloader.fetch(result.hero, game, "hero"),
             logo = game.assets.logo ?: downloader.fetch(result.logo, game, "logo"),

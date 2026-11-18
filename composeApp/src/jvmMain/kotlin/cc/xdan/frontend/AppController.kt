@@ -323,7 +323,12 @@ class AppController {
 
     fun toggleFavorite(id: String) = library.updateGame(id) { it.copy(favorite = !it.favorite) }
     fun setHidden(ids: Set<String>, hidden: Boolean) = library.update { l -> l.map { if (it.id in ids) it.copy(hidden = hidden) else it } }
-    fun rename(id: String, title: String) = library.updateGame(id) { it.copy(title = title, titleLocked = true) }
+    fun rename(id: String, title: String) {
+        val before = library.value.firstOrNull { it.id == id } ?: return
+        library.updateGame(id) { it.copy(title = title, titleLocked = true) }
+        // New name → look it up again (only SteamGridDB/IGDB search by title).
+        if (before.title != title) library.value.firstOrNull { it.id == id }?.let { scraper.refetch(it) }
+    }
     fun setLauncher(id: String, key: String?) = library.updateGame(id) { it.copy(launcherOverride = key) }
 
     fun addPort(exe: File, title: String, platformId: String, args: String?): Game {
@@ -484,6 +489,7 @@ class AppController {
     fun powerOptions(): List<Power> = Power.entries.filter {
         !(it == Power.BIGSCREEN && mode.value == UiMode.BIGSCREEN) && !(it == Power.XMB && mode.value == UiMode.XMB)
     }
+    init { controllers.allowGuideUnfocused = { external.value != null } }
     val exitRequests = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     fun power(p: Power) {
         when (p) {

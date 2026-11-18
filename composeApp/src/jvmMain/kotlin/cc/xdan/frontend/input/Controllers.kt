@@ -72,6 +72,10 @@ class ControllerManager {
     @Volatile var nintendoConfirm = false
     /** When true, pads drive the emulated game; only hotkeys produce nav events. */
     @Volatile var gameMode = false
+    /** False while another app is in front: controller input is ignored then (e.g. playing a Steam game). */
+    @Volatile var windowFocused = true
+    /** Lets Guide through while unfocused (to leave an external emulator we launched). */
+    @Volatile var allowGuideUnfocused: () -> Boolean = { false }
     /** Keyboard rewind (Backspace held in game). */
     @Volatile var keyboardRewind = false
 
@@ -222,6 +226,7 @@ class ControllerManager {
     private fun emit(p: Pad, repeat: Boolean, family: ControllerFamily, instance: Int? = null) {
         val confirmPad = if (nintendoConfirm) Pad.EAST else Pad.SOUTH
         val backPad = if (nintendoConfirm) Pad.SOUTH else Pad.EAST
+        if (!windowFocused && !(p == Pad.GUIDE && allowGuideUnfocused())) return
         padCapture?.let { cb -> if (!repeat && !gameMode) { padCapture = null; cb(p); return } }
         val nav = padBindings[p].takeUnless { gameMode } ?: when (p) {
             Pad.UP -> Nav.UP; Pad.DOWN -> Nav.DOWN; Pad.LEFT -> Nav.LEFT; Pad.RIGHT -> Nav.RIGHT
@@ -270,7 +275,7 @@ class ControllerManager {
         _controllers.value = _controllers.value.toList()   // nudge observers
     }
 
-    fun portButtons(port: Int): Int = ports[port].buttons or (if (port == 0) keyboard.buttons else 0)
+    fun portButtons(port: Int): Int = if (!windowFocused) 0 else ports[port].buttons or (if (port == 0) keyboard.buttons else 0)
 
     fun rumble(port: Int, low: Int, high: Int, ms: Int) {
         val id = portOf.entries.firstOrNull { it.value == port }?.key ?: return

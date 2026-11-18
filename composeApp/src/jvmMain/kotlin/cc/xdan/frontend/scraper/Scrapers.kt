@@ -225,11 +225,12 @@ class SteamStore(private val http: HttpClient) : ScraperProvider {
 
 /** Downloads remote images into the media cache. */
 class AssetDownloader(private val http: HttpClient) {
-    suspend fun fetch(url: String?, game: Game, kind: String): String? {
+    /** [fresh]: new file name, so a re-fetch never reuses (or is masked by the image cache of) the old file. */
+    suspend fun fetch(url: String?, game: Game, kind: String, fresh: Boolean = false): String? {
         if (url == null) return null
         if (!url.startsWith("http")) return url
         val ext = url.substringAfterLast('.').substringBefore('?').lowercase().takeIf { it in setOf("png", "jpg", "jpeg", "webp") } ?: "png"
-        val out = File(AppPaths.media, "${game.platformId}/${game.id}/$kind.$ext")
+        val out = File(AppPaths.media, "${game.platformId}/${game.id}/$kind${if (fresh) "-" + System.currentTimeMillis() else ""}.$ext")
         if (out.isFile && out.length() > 0) return out.path
         return runCatching {
             val r = http.get(url)

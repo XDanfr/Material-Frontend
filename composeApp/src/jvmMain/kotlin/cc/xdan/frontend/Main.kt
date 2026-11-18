@@ -6,6 +6,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.input.key.isAltPressed
 import cc.xdan.frontend.data.HostOs
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.input.key.Key
@@ -66,6 +67,16 @@ fun main(args: Array<String>) {
             icon = windowIcon,
             onPreviewKeyEvent = { e -> handleKey(app, e) },
         ) {
+            // Ignore controllers while another window is in front (a Steam game, a browser…).
+            DisposableEffect(window) {
+                val l = object : java.awt.event.WindowFocusListener {
+                    override fun windowGainedFocus(e: java.awt.event.WindowEvent?) { app.controllers.windowFocused = true }
+                    override fun windowLostFocus(e: java.awt.event.WindowEvent?) { app.controllers.windowFocused = false }
+                }
+                window.addWindowFocusListener(l)
+                app.controllers.windowFocused = window.isFocused
+                onDispose { window.removeWindowFocusListener(l) }
+            }
             App(app)
         }
     }
