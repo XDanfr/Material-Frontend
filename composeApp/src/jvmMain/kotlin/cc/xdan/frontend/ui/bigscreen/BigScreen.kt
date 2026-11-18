@@ -415,7 +415,10 @@ fun BigScreen() {
                 }
                 is Overlay.Power -> MenuOverlay(if (o.confirming != null) listOf(o.confirming.label, "Cancel") else app.powerOptions().map { it.label },
                     o.focus, title = o.confirming?.confirm ?: "Power") { i -> powerAction(o, i, app, overlays) }
-                is Overlay.LogoEditor -> LogoEditorOverlay(o)
+                is Overlay.LogoEditor -> LogoEditorOverlay(o, family, settings.nintendoConfirm,
+                    onSave = { app.setLogo(o.game.id, o.pin, o.width); closeLogoEditor(overlays, o.game.copy(logoPin = o.pin, logoWidth = o.width)) },
+                    onReset = { app.setLogo(o.game.id, null, null); closeLogoEditor(overlays, o.game.copy(logoPin = null, logoWidth = null)) },
+                    onCancel = { overlays.remove(o) })
                 is Overlay.Rename -> RenameOverlay(o.game, onDone = { t ->
                     if (t == null) { /* cancelled */ }
                     else if (o.game.id == NAME_ID) app.updateSettings { it.copy(userName = t.trim().take(32)) }
@@ -834,7 +837,7 @@ private fun closeLogoEditor(overlays: MutableList<Overlay>, updated: Game) {
 /** Big 16:9 preview with the nine anchors marked; the logo springs between them and grows from its anchor. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun LogoEditorOverlay(o: Overlay.LogoEditor) {
+private fun LogoEditorOverlay(o: Overlay.LogoEditor, family: ControllerFamily, nintendoConfirm: Boolean, onSave: () -> Unit, onReset: () -> Unit, onCancel: () -> Unit) {
     val (heroPath, heroNeedsBlur) = rememberHeroArt(o.game)
     val hero by rememberImage(heroPath ?: o.game.assets.cover, 1600)
     val logo by rememberImage(o.game.assets.logo, 800)
@@ -854,9 +857,36 @@ private fun LogoEditorOverlay(o: Overlay.LogoEditor) {
                         .background(if (p == o.pin) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.45f)))
                 }
                 PlacedLogo(logo, o.game.title, o.pin, width, Modifier.padding(28.dp),
-                    titleStyle = MaterialTheme.typography.displaySmallEmphasized, align = androidx.compose.ui.BiasAlignment(bx, by))
+                    titleStyle = MaterialTheme.typography.displaySmallEmphasized, align = androidx.compose.ui.BiasAlignment(bx, by), showBounds = true)
             }
             Text("${o.pin.label} · ${(o.width * 100).toInt()}% wide", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // HUD: how to move and size, plus the three actions as real buttons (with their controller buttons).
+            Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ButtonGlyph(Pad.UP, family); ButtonGlyph(Pad.LEFT, family); Text("Move", style = MaterialTheme.typography.labelLarge)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ButtonGlyph(Pad.LB, family); ButtonGlyph(Pad.RB, family); Text("Size", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                val confirm = if (nintendoConfirm) Pad.EAST else Pad.SOUTH
+                val back = if (nintendoConfirm) Pad.SOUTH else Pad.EAST
+                HudButton("Cancel", back, family, onClick = onCancel)
+                HudButton("Reset to default", Pad.WEST, family, onClick = onReset)
+                HudButton("Save", confirm, family, primary = true, onClick = onSave)
+            }
+        }
+    }
+}
+
+/** A pill button that shows which controller button triggers it. */
+@Composable
+private fun HudButton(label: String, pad: Pad, family: ControllerFamily, primary: Boolean = false, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(50), color = if (primary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            ButtonGlyph(pad, family)
+            Text(label, style = MaterialTheme.typography.titleMedium, color = if (primary) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
         }
     }
 }

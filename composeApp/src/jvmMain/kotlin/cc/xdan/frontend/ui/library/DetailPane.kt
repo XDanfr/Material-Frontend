@@ -216,7 +216,7 @@ private fun LogoDialog(game: Game, hero: androidx.compose.ui.graphics.ImageBitma
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Box(Modifier.width(520.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
                     hero?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-                    cc.xdan.frontend.ui.components.PlacedLogo(logo, game.title, pin, width, Modifier.padding(16.dp))
+                    cc.xdan.frontend.ui.components.PlacedLogo(logo, game.title, pin, width, Modifier.padding(16.dp), showBounds = true)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

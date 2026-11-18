@@ -336,14 +336,23 @@ fun cc.xdan.frontend.model.LogoPin.alignment(): androidx.compose.ui.Alignment = 
 @Composable
 fun PlacedLogo(logo: androidx.compose.ui.graphics.ImageBitmap?, title: String, pin: cc.xdan.frontend.model.LogoPin, widthFraction: Float,
                modifier: Modifier = Modifier, titleStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleLargeEmphasized,
-               showTitle: Boolean = true, align: androidx.compose.ui.Alignment? = null) {
+               showTitle: Boolean = true, align: androidx.compose.ui.Alignment? = null, showBounds: Boolean = false) {
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxSize()) {
         val a = align ?: pin.alignment()
         val clear = androidx.compose.ui.graphics.painter.ColorPainter(androidx.compose.ui.graphics.Color.Transparent)
+        val w = maxWidth * widthFraction.coerceIn(0.08f, 1f)
+        // Editor: outline the logo's area so size changes are visible even when the art is small or missing.
+        val bounds = if (showBounds) Modifier.border(2.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f), RoundedCornerShape(8.dp)) else Modifier
         androidx.compose.foundation.Image(logo?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, title,
-            Modifier.align(a).width(maxWidth * widthFraction.coerceIn(0.08f, 1f)).heightIn(max = maxHeight * 0.7f),
+            // A 2:1 box that scales as a whole, so square/tall logos (common on SteamGridDB) grow and shrink too.
+            Modifier.align(a).width(w).height((w * 0.5f).coerceAtMost(maxHeight)).then(if (logo != null) bounds else Modifier),
             contentScale = androidx.compose.ui.layout.ContentScale.Fit, alignment = a)
-        Text(title, Modifier.align(a).widthIn(max = maxWidth * 0.8f).alpha(if (logo == null && showTitle) 1f else 0f), style = titleStyle,
+        // No logo: the title stands in, sized to the same width so it grows and shrinks like a logo would.
+        val titleSize = with(androidx.compose.ui.platform.LocalDensity.current) {
+            (w / (title.length.coerceIn(6, 28) * 0.56f)).coerceIn(12.dp, maxHeight * 0.3f).toSp()
+        }
+        Text(title, Modifier.align(a).width(w).then(if (logo == null) bounds.padding(6.dp) else Modifier).alpha(if (logo == null && showTitle) 1f else 0f),
+            style = titleStyle.copy(fontSize = titleSize, lineHeight = titleSize * 1.1f),
             color = androidx.compose.ui.graphics.Color.White, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             textAlign = when (pin.col) { 0 -> androidx.compose.ui.text.style.TextAlign.Start; 1 -> androidx.compose.ui.text.style.TextAlign.Center; else -> androidx.compose.ui.text.style.TextAlign.End })
     }
