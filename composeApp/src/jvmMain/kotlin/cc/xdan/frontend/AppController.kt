@@ -275,7 +275,7 @@ class AppController {
         when (t) {
             is LaunchTarget.Core -> {
                 val session = EmulationSession(t.file, game.path, game.id, controllers, s.biosDir?.let(::File) ?: AppPaths.system, s.rewind,
-                    InputMaps.resolve(s, game.platformId, game.id), game.platformId)
+                    InputMaps.resolve(s, game.platformId, game.id), game.platformId, resumeAutoSave = s.autoSaveState)
                 controllers.gameMode = true
                 sessionStart = System.currentTimeMillis()
                 _session.value = session

@@ -41,6 +41,8 @@ class EmulationSession(
     /** Which pad button drives each RetroPad id (see InputMaps). */
     inputMap: List<Pad> = cc.xdan.frontend.input.InputMaps.DEFAULT,
     val platformId: String = "",
+    /** Load the auto-save (slot 0) after the first frame — "resume where you left off". */
+    private val resumeAutoSave: Boolean = false,
 ) : LibretroHost {
     enum class Status { LOADING, RUNNING, PAUSED, ERROR, STOPPED }
 
@@ -224,6 +226,10 @@ class EmulationSession(
                 }
                 flushSingleSamples()
                 frameNo++
+                // Resume after one frame (some cores reject a state before they've run once).
+                if (frameNo == 1L && resumeAutoSave && stateFile(0).isFile) {
+                    if (core.unserialize(stateFile(0).readBytes())) messages.tryEmit("Resumed where you left off")
+                }
                 if (System.currentTimeMillis() - lastSramSave > 30_000) { saveSram(); lastSramSave = System.currentTimeMillis() }
 
                 next += frameNs
