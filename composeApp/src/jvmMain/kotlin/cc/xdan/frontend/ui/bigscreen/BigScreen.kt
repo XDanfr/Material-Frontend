@@ -519,14 +519,14 @@ private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused
 
 /**
  * A shelf tile. The focused one widens from box art to a 16:9 card with the game's wide art and logo
- * (games without wide art stay as box art); moving on shrinks it back as the next one opens.
+ * (no wide art → its box art, blurred, behind the logo); moving on shrinks it back as the next one opens.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ShelfCard(g: Game, rowActive: Boolean, focused: Boolean, onClick: () -> Unit) {
     val motion = MaterialTheme.motionScheme
     val wideArt = g.assets.hero ?: g.assets.screenshot
-    val expand = focused && wideArt != null
+    val expand = focused
     val h = if (rowActive) 252.dp else 198.dp
     val w by androidx.compose.animation.core.animateDpAsState(if (expand) h * 16f / 9f else h * 2f / 3f, motion.defaultSpatialSpec())
     val wideAlpha by animateFloatAsState(if (expand) 1f else 0f, motion.defaultEffectsSpec())
@@ -535,11 +535,11 @@ private fun ShelfCard(g: Game, rowActive: Boolean, focused: Boolean, onClick: ()
         .clickable(onClick = onClick)) {
         // Box art stays underneath (cropped) so the change never shows an empty frame.
         CoverArt(g, Modifier.fillMaxSize())
-        if (wideArt != null && (expand || wideAlpha > 0f)) {
-            val hero by rememberImage(wideArt, 1280)
+        if (expand || wideAlpha > 0f) {
+            val hero by rememberImage(wideArt ?: g.assets.cover, if (wideArt != null) 1280 else 400)
             val logo by rememberImage(g.assets.logo, 600)
             Box(Modifier.fillMaxSize().alpha(wideAlpha).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
-                hero?.let { Image(it, g.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                hero?.let { Image(it, g.title, Modifier.fillMaxSize().then(if (wideArt == null) Modifier.blur(28.dp) else Modifier), contentScale = ContentScale.Crop) }
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
                 val l = logo
                 Box(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
