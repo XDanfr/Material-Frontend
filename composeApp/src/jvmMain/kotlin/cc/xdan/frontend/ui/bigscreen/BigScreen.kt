@@ -1,5 +1,7 @@
 package cc.xdan.frontend.ui.bigscreen
 
+import cc.xdan.frontend.ui.components.rememberHeroArt
+import cc.xdan.frontend.ui.components.heroBlur
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.carousel.HorizontalCenteredHeroCarousel
 import cc.xdan.frontend.ui.settings.ControllerSettings
@@ -525,7 +527,7 @@ private fun HomeTab(shelves: List<Shelf>, row: Int, cols: Map<Int, Int>, focused
 @Composable
 private fun ShelfCard(g: Game, rowActive: Boolean, focused: Boolean, onClick: () -> Unit) {
     val motion = MaterialTheme.motionScheme
-    val wideArt = g.assets.hero ?: g.assets.screenshot
+    val (wideArt, wideNeedsBlur) = rememberHeroArt(g)
     val expand = focused
     val h = if (rowActive) 252.dp else 198.dp
     val w by androidx.compose.animation.core.animateDpAsState(if (expand) h * 16f / 9f else h * 2f / 3f, motion.defaultSpatialSpec())
@@ -543,7 +545,7 @@ private fun ShelfCard(g: Game, rowActive: Boolean, focused: Boolean, onClick: ()
         val clear = androidx.compose.ui.graphics.painter.ColorPainter(Color.Transparent)
         Box(Modifier.fillMaxSize().alpha(wideAlpha).background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = if (loadWide) 1f else 0f))) {
             Image(hero?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, g.title,
-                Modifier.fillMaxSize().then(if (wideArt == null) Modifier.blur(28.dp) else Modifier), contentScale = ContentScale.Crop)
+                Modifier.fillMaxSize().heroBlur(wideArt == null || wideNeedsBlur), contentScale = ContentScale.Crop)
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
             Box(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
                 Image(logo?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: clear, g.title,
@@ -605,12 +607,13 @@ private fun LibraryTab(platforms: List<String?>, platformIdx: Int, games: List<G
 private fun DetailsOverlay(g: Game, focus: Int, onAction: (Int) -> Unit, onBack: () -> Unit, onPlay: () -> Unit, onLaunchWith: () -> Unit, onMore: () -> Unit) {
     val app = LocalApp.current
     val settings by app.settings.state.collectAsState()
-    val hero by rememberImage(g.assets.hero ?: g.assets.screenshot, 1920)
+    val (heroPath, heroNeedsBlur) = rememberHeroArt(g)
+    val hero by rememberImage(heroPath, 1920)
     val logo by rememberImage(g.assets.logo, 800)
     val target = remember(g, settings) { Launchers.resolve(g, settings) }
     AnimatedVisibility(true, enter = fadeIn() + scaleIn(initialScale = 0.96f)) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-            hero?.let { Image(it, null, Modifier.fillMaxWidth().fillMaxHeight(0.62f), contentScale = ContentScale.Crop) }
+            hero?.let { Image(it, null, Modifier.fillMaxWidth().fillMaxHeight(0.62f).heroBlur(heroNeedsBlur), contentScale = ContentScale.Crop) }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.25f to Color.Transparent, 0.62f to MaterialTheme.colorScheme.surface)))
             Row(Modifier.fillMaxSize().padding(64.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(48.dp)) {
                 CoverArt(g, Modifier.width(260.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(28.dp)), maxDim = 600)
@@ -870,13 +873,14 @@ private fun Spotlight(games: List<Game>, index: Int, focused: Boolean, onPick: (
         androidx.compose.runtime.key(games[i].id) {
         Box(Modifier.offset(x = x).width(w).fillMaxHeight()) {
         val g = games[i]
-        val art by rememberImage(g.assets.hero ?: g.assets.screenshot ?: g.assets.cover, 1600)
+        val (heroPath, heroNeedsBlur) = rememberHeroArt(g)
+        val art by rememberImage(heroPath ?: g.assets.cover, 1600)
         val logo by rememberImage(g.assets.logo, 600)
         val current = i == index
         val shape = RoundedCornerShape(28.dp)
         Box(Modifier.fillMaxSize().clip(shape).then(if (current && focused) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape) else Modifier)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest).clickable { onPick(i) }) {
-            art?.let { Image(it, g.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+            art?.let { Image(it, g.title, Modifier.fillMaxSize().heroBlur(heroNeedsBlur || heroPath == null), contentScale = ContentScale.Crop) }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
             androidx.compose.animation.AnimatedVisibility(current, Modifier.align(Alignment.BottomStart), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
             Column(Modifier.padding(28.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

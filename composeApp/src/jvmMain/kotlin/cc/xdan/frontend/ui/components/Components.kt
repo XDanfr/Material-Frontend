@@ -1,5 +1,7 @@
 package cc.xdan.frontend.ui.components
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.zIndex
 import cc.xdan.frontend.data.HostOs
 import androidx.compose.runtime.compositionLocalOf
@@ -295,3 +297,21 @@ fun formatAgo(ms: Long?): String {
 @Composable
 fun PlatformChipLabel(platformId: String) =
     Text(Platforms.get(platformId).shortName, style = MaterialTheme.typography.labelMedium)
+
+/** Wide art for [game] in the chosen style: (path, needsBlur). Blurred prefers Steam's own library_hero_blur.jpg next to the hero. */
+fun heroArt(game: Game, blurred: Boolean): Pair<String?, Boolean> {
+    val hero = game.assets.hero
+    val wide = hero ?: game.assets.screenshot ?: return null to false
+    if (!blurred) return wide to false
+    val steamBlur = hero?.let { java.io.File(java.io.File(it).parentFile, "library_hero_blur.jpg") }?.takeIf { it.isFile }
+    return if (steamBlur != null) steamBlur.path to false else wide to true
+}
+
+/** [heroArt] for the current setting. */
+@Composable
+fun rememberHeroArt(game: Game): Pair<String?, Boolean> {
+    val blurred = cc.xdan.frontend.ui.theme.LocalApp.current.settings.state.collectAsState().value.blurredHeroes
+    return remember(game.assets, blurred) { heroArt(game, blurred) }
+}
+
+fun Modifier.heroBlur(apply: Boolean): Modifier = if (apply) this.blur(24.dp) else this

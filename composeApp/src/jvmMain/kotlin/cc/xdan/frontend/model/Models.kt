@@ -144,6 +144,8 @@ data class Settings(
     val startFullscreen: Boolean = false,
     /** Pause the built-in player while another app is in front (controllers are ignored then anyway). */
     val pauseInBackground: Boolean = true,
+    /** Wide hero art: sharp, or blurred (Steam's own blurred copy where there is one). */
+    val blurredHeroes: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** Brand purple (M3 baseline primary). */
     val seedColor: Long = 0xFF6750A4,

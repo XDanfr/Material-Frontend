@@ -96,6 +96,8 @@ private fun items(app: AppController, s: Settings, section: SettingsSection, mod
             ChoiceSetting("startMode", "Open in", "The theme the app starts in", listOf("Library", "Big Screen", "XMB"),
                 UiMode.entries.indexOf(s.defaultMode), { i -> set { it.copy(defaultMode = UiMode.entries[i], startFullscreen = UiMode.entries[i] != UiMode.LIST) } }),
             ToggleSetting("startFullscreen", "Start in fullscreen", null, s.startFullscreen) { v -> set { it.copy(startFullscreen = v) } },
+            ChoiceSetting("heroStyle", "Hero art", "The wide artwork behind games", listOf("Sharp", "Blurred"), if (s.blurredHeroes) 1 else 0,
+                { i -> set { it.copy(blurredHeroes = i == 1) } }),
             ToggleSetting("pauseInBackground", "Pause games in the background", "When another app is in front, the built-in player pauses", s.pauseInBackground) { v -> set { it.copy(pauseInBackground = v) } },
             ToggleSetting("minimise", "Minimise while an external emulator runs", null, s.minimizeOnExternalLaunch) { v -> set { it.copy(minimizeOnExternalLaunch = v) } },
         )

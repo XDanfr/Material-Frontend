@@ -2,6 +2,7 @@
 
 package cc.xdan.frontend.ui.library
 
+import cc.xdan.frontend.ui.components.heroBlur
 import cc.xdan.frontend.emulators.launchLabel
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -97,7 +98,8 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
     var menuOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
-    val hero by rememberImage(game.assets.hero ?: game.assets.screenshot, 1280)
+    val (heroPath, heroNeedsBlur) = cc.xdan.frontend.ui.components.rememberHeroArt(game)
+    val hero by rememberImage(heroPath, 1280)
     val logo by rememberImage(game.assets.logo, 600)
     val platform = Platforms.get(game.platformId)
 
@@ -106,7 +108,7 @@ fun DetailPane(game: Game, onClose: () -> Unit, modifier: Modifier = Modifier) {
             // Hero with logo overlay
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 16.dp, bottomEnd = 16.dp))) {
                 val h = hero
-                if (h != null) Image(h, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                if (h != null) Image(h, null, Modifier.fillMaxSize().heroBlur(heroNeedsBlur), contentScale = ContentScale.Crop)
                 else CoverArt(game, Modifier.fillMaxSize(), preferWide = true)
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to MaterialTheme.colorScheme.surfaceContainerLow)))
                 logo?.let { Image(it, game.title, Modifier.align(Alignment.BottomStart).padding(16.dp).heightIn(max = 72.dp).widthIn(max = 260.dp), contentScale = ContentScale.Fit) }
