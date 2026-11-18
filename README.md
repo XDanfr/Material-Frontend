@@ -88,6 +88,8 @@ In game, the keyboard maps to the RetroPad as follows: arrows = D-pad, Z/X/A/S =
 
 ## Icons and type
 
+- **Platform marks:** brand logos from [Simple Icons](https://simpleicons.org) 16.38.0 (CC0; logos remain their owners' trademarks). Nintendo, Xbox and a few others aren't in Simple Icons, so those systems use original hardware outlines drawn for this app.
+
 - **App icon:** `packaging/macos/AppIcon.icon` is the Icon Composer source.
   - `packaging/macos/build-icon.sh` (Xcode 26+) compiles it to `Assets.car`, which gives the Liquid Glass icon, plus `AppIcon.icns`. Both outputs are committed, so CI doesn't need Xcode 26.
   - The Windows `.ico` and Linux `.png` are rendered from `composeApp/src/jvmMain/resources/icons/app-icon.svg` with `MF_WRITE_ICONS=$PWD ./gradlew :composeApp:jvmTest --tests '*IconAssetsTest*'`.
