@@ -1,5 +1,6 @@
 package cc.xdan.frontend.ui.onboarding
 
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.animation.core.Animatable
 import cc.xdan.frontend.ui.brand.LocalSplashActive
@@ -81,6 +82,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -154,10 +156,18 @@ private class Target(val onActivate: () -> Unit)
 
 /** Collected while composing a step, so the controller handler knows what's focusable. */
 private class StepScope(val focus: Int, val big: Boolean) {
-    val targets = ArrayList<Target>()
-    var choices = 0
+    /**
+     * Keyed, in first-registration order. A control's own animation can recompose just that control,
+     * which registers it again — the key keeps its position stable (appending would shift indices).
+     */
+    private val byKey = LinkedHashMap<String, Target>()
+    val targets: List<Target> get() = byKey.values.toList()
+    val choices: Int get() = byKey.keys.count { it.startsWith("choice:") }
     var primaryIndex = -1
-    fun register(onActivate: () -> Unit): Int { targets += Target(onActivate); return targets.lastIndex }
+    fun register(key: String, onActivate: () -> Unit): Int {
+        byKey[key] = Target(onActivate)   // replacing keeps insertion order
+        return byKey.keys.indexOf(key)
+    }
     /** Before the user moves (focus = -1): the first choice, or the primary button when there are no choices. */
     fun isFocused(i: Int, isChoice: Boolean = false, isPrimary: Boolean = false) =
         i == focus || (focus == -1 && ((isChoice && i == 0) || (isPrimary && choices == 0)))
@@ -217,24 +227,10 @@ fun Onboarding() {
         }
     }
 
-    val rootFocus = remember { FocusRequester() }
-    LaunchedEffect(current) { runCatching { rootFocus.requestFocus() } }
-
     val pad = if (big) 72.dp else 48.dp
     CompositionLocalProvider(LocalPressPulse provides pressPulse) {
         Box(
             Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
-                .focusRequester(rootFocus).focusable()
-                .onKeyEvent { e ->
-                    if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
-                    val nav = when (e.key) {
-                        Key.DirectionLeft -> Nav.LEFT; Key.DirectionRight -> Nav.RIGHT; Key.DirectionUp -> Nav.UP; Key.DirectionDown -> Nav.DOWN
-                        Key.Enter, Key.Spacebar -> Nav.CONFIRM; Key.Escape, Key.Backspace -> Nav.BACK; Key.Tab -> Nav.MENU
-                        else -> null
-                    } ?: return@onKeyEvent false
-                    if (nav == Nav.CONFIRM) pressPulse++
-                    handle(nav); true
-                },
         ) {
             // Progress: a quiet wavy line, not a list of steps.
             if (current != StepId.WELCOME) {
@@ -308,7 +304,7 @@ private fun StepScope.Question(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun StepScope.PillButton(label: String, primary: Boolean, enabled: Boolean = true, icon: ImageVector? = null, onClick: () -> Unit) {
-    val i = register { if (enabled) onClick() }
+    val i = register("button:$label") { if (enabled) onClick() }
     if (primary) primaryIndex = i
     val focused = isFocused(i, isPrimary = primary)
     val cs = MaterialTheme.colorScheme
@@ -323,7 +319,7 @@ private fun StepScope.PillButton(label: String, primary: Boolean, enabled: Boole
     val ring by animateColorAsState(if (focused) cs.onSurface else Color.Transparent, MaterialTheme.motionScheme.fastEffectsSpec())
     val interaction = remember { MutableInteractionSource() }
     Surface(onClick = onClick, enabled = enabled, shape = RoundedCornerShape(corner), color = bg, interactionSource = interaction,
-        modifier = Modifier.height(if (big) 72.dp else 56.dp).pressBounce(LocalPressPulse.current, focused, interaction)
+        modifier = Modifier.height(if (big) 72.dp else 56.dp).focusProperties { canFocus = false }.pressBounce(LocalPressPulse.current, focused, interaction)
             .border(3.dp, ring, RoundedCornerShape(corner + 4.dp))) {
         Row(Modifier.padding(horizontal = if (big) 40.dp else 28.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (icon != null) Icon(icon, null, tint = fg)
@@ -340,8 +336,7 @@ private fun StepScope.Choice(
     title: String, subtitle: String?, selected: Boolean, onClick: () -> Unit,
     icon: ImageVector? = null, tile: BrandTile? = null, preview: (@Composable (Boolean) -> Unit)? = null,
 ) {
-    val i = register(onClick)
-    choices++
+    val i = register("choice:$title", onClick)
     val focused = isFocused(i, isChoice = true)
     val cs = MaterialTheme.colorScheme
     val w = if (big) CARD_W_BIG else CARD_W
@@ -357,6 +352,7 @@ private fun StepScope.Choice(
         Modifier.size(w, h).graphicsLayer { scaleX = scale; scaleY = scale }.pressBounce(LocalPressPulse.current, focused, interaction)
             .border(3.dp, ring, RoundedCornerShape(corner + 4.dp)).padding(5.dp)
             .clip(RoundedCornerShape(corner)).background(bg)
+            .focusProperties { canFocus = false }   // focus is ours (controller/keyboard nav), not Compose's
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(if (big) 28.dp else 22.dp),
     ) {
@@ -665,10 +661,18 @@ private fun Cores(s: StepScope, back: () -> Unit, next: () -> Unit) = with(s) {
 private fun Bios(s: StepScope, settings: Settings, back: () -> Unit, next: () -> Unit) = with(s) {
     val app = LocalApp.current
     val dir = File(settings.biosDir ?: AppPaths.system.path)
-    val required = BiosCatalog.all.filter { it.required }
-    val ready = remember(dir) { required.count { BiosCatalog.status(dir, it) != BiosCatalog.Status.MISSING } }
-    Question("BIOS files", "A few systems (PS1, Saturn, Sega CD…) need BIOS files that you dump yourself. They're never downloaded. $ready of ${required.size} found in ${dir.path}.",
-        back, next) {
+    val played by produceState<Set<String>?>(null, settings.romFolders) { value = app.playedPlatforms() }
+    // Only the systems found in your game folders.
+    val required = BiosCatalog.all.filter { it.required && played?.contains(it.platformId) == true }
+    val ready = remember(dir, required) { required.count { BiosCatalog.status(dir, it) != BiosCatalog.Status.MISSING } }
+    val systems = required.map { cc.xdan.frontend.model.Platforms.get(it.platformId).shortName }.distinct()
+    val explain = when {
+        played == null -> "Checking which of your systems need BIOS files…"
+        required.isEmpty() -> "None of the systems in your game folders need BIOS files. You're all set here."
+        else -> "${systems.joinToString()} need BIOS files that you dump yourself — they're never downloaded. $ready of ${required.size} found in ${dir.path}."
+    }
+    Question("BIOS files", explain, back, next) {
+        if (played != null && required.isEmpty()) return@Question
         ChoiceRow {
             Choice("Choose BIOS folder", "Point to where your BIOS files are", settings.biosDir != null, {
                 FilePicker.pickFolder("BIOS folder")?.let { d -> app.updateSettings { it.copy(biosDir = d.path) } }

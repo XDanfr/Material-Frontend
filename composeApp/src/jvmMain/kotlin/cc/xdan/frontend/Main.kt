@@ -74,10 +74,20 @@ private fun isFullscreenShortcut(e: KeyEvent): Boolean =
  * Keyboard → controller bridge. In list mode the keyboard belongs to normal Compose focus; in
  * Big Screen / XMB / in-game it drives the same navigation events as a gamepad.
  */
-private fun handleKey(app: AppController, e: KeyEvent): Boolean {
+internal fun handleKey(app: AppController, e: KeyEvent): Boolean {
     val down = e.type == KeyEventType.KeyDown
     if (down && isFullscreenShortcut(e)) { app.fullscreen.value = !app.fullscreen.value; return true }
-    if (!app.settings.value.onboardingComplete) return false
+    if (!app.settings.value.onboardingComplete) {
+        // Setup: one navigation path for keyboard and controller (Backspace left alone for text fields).
+        if (e.isCtrlPressed || e.isMetaPressed) return false
+        val nav = when (e.key) {
+            Key.DirectionUp -> Nav.UP; Key.DirectionDown -> Nav.DOWN; Key.DirectionLeft -> Nav.LEFT; Key.DirectionRight -> Nav.RIGHT
+            Key.Enter -> Nav.CONFIRM; Key.Escape -> Nav.BACK; Key.Tab -> Nav.MENU
+            else -> null
+        } ?: return false
+        if (down) app.controllers.onKey(nav, null, true)
+        return true
+    }
     val inGame = app.session.value != null
     if (!inGame && app.mode.value == UiMode.LIST) return false
     if (e.isCtrlPressed || e.isMetaPressed) return false
