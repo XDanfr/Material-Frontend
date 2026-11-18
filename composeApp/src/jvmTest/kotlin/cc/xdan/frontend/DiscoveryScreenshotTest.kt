@@ -45,6 +45,7 @@ class DiscoveryScreenshotTest {
                                 Row(Modifier.padding(24.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                     CoverArt(Game("a", "Super Mario World", "snes", path = "a"), Modifier.size(160.dp, 220.dp))
                                     CoverArt(Game("b", "Gran Turismo 4", "ps2", path = "b"), Modifier.size(160.dp, 220.dp))
+                                    CoverArt(Game("c", "Portal 2", "steam", kind = cc.xdan.frontend.model.GameKind.STEAM, path = "620", installed = false), Modifier.size(160.dp, 220.dp))
                                 }
                                 DiscoveryDialog(app, list)
                             }
