@@ -38,6 +38,7 @@ class SetupKeyboardTest {
         kotlin.test.assertEquals(cc.xdan.frontend.model.Usage.EMULATION, app.settings.value.usage, "Right then Enter should choose Emulation")
         // Continue (Tab = Start) to the next page; keys must still drive that page, not the first one.
         fun tap(k: Key) { handleKey(app, KeyEvent(k, KeyEventType.KeyDown)); handleKey(app, KeyEvent(k, KeyEventType.KeyUp)); repeat(40) { pump(16); Thread.sleep(10) } }
+        repeat(40) { pump(16); Thread.sleep(10) }   // let the chosen option recompose (Continue enables)
         tap(Key.Tab)
         val second = app.settings.value.onboardingStep
         kotlin.test.assertNotEquals("USAGE", second, "Tab continues")
